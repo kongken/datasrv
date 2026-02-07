@@ -2,54 +2,54 @@ syntax = "proto3";
 
 package issues.v1;
 
-option go_package = "github.com/yourproject/proto/issues/v1;issuesv1";
-
 import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/kongken/monkey/pkg/proto/issues/v1;issuesv1";
 
 // Issue 表示一个 GitHub issue
 message Issue {
   // issue 的唯一标识符
   int64 id = 1;
-  
+
   // issue 编号
   int32 number = 2;
-  
+
   // issue 标题
   string title = 3;
-  
+
   // issue 描述内容
   string body = 4;
-  
+
   // issue 状态 (open, closed)
   string state = 5;
-  
+
   // issue 创建者
   User user = 6;
-  
+
   // 标签列表
   repeated Label labels = 7;
-  
+
   // 受理人列表
   repeated User assignees = 8;
-  
+
   // 评论数量
   int32 comments = 9;
-  
+
   // 创建时间
   google.protobuf.Timestamp created_at = 10;
-  
+
   // 更新时间
   google.protobuf.Timestamp updated_at = 11;
-  
+
   // 关闭时间
   google.protobuf.Timestamp closed_at = 12;
-  
+
   // issue 的 HTML URL
   string html_url = 13;
-  
+
   // 里程碑
   Milestone milestone = 14;
-  
+
   // 是否被锁定
   bool locked = 15;
 }
@@ -58,13 +58,13 @@ message Issue {
 message User {
   // 用户 ID
   int64 id = 1;
-  
+
   // 用户名
   string login = 2;
-  
+
   // 头像 URL
   string avatar_url = 3;
-  
+
   // 用户主页 URL
   string html_url = 4;
 }
@@ -73,13 +73,13 @@ message User {
 message Label {
   // 标签 ID
   int64 id = 1;
-  
+
   // 标签名称
   string name = 2;
-  
+
   // 标签颜色
   string color = 3;
-  
+
   // 标签描述
   string description = 4;
 }
@@ -88,19 +88,19 @@ message Label {
 message Milestone {
   // 里程碑 ID
   int64 id = 1;
-  
+
   // 里程碑编号
   int32 number = 2;
-  
+
   // 里程碑标题
   string title = 3;
-  
+
   // 里程碑描述
   string description = 4;
-  
+
   // 里程碑状态 (open, closed)
   string state = 5;
-  
+
   // 截止日期
   google.protobuf.Timestamp due_on = 6;
 }
@@ -109,19 +109,19 @@ message Milestone {
 message IssueComment {
   // 评论 ID
   int64 id = 1;
-  
+
   // 评论内容
   string body = 2;
-  
+
   // 评论者
   User user = 3;
-  
+
   // 创建时间
   google.protobuf.Timestamp created_at = 4;
-  
+
   // 更新时间
   google.protobuf.Timestamp updated_at = 5;
-  
+
   // 评论的 HTML URL
   string html_url = 6;
 }
