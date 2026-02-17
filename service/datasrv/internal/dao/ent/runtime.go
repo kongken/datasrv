@@ -8,6 +8,7 @@ import (
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/issue"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/label"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/milestone"
+	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/repository"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/schema"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/user"
 )
@@ -70,6 +71,58 @@ func init() {
 	milestone.DefaultUpdatedAt = milestoneDescUpdatedAt.Default.(func() time.Time)
 	// milestone.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	milestone.UpdateDefaultUpdatedAt = milestoneDescUpdatedAt.UpdateDefault.(func() time.Time)
+	repositoryFields := schema.Repository{}.Fields()
+	_ = repositoryFields
+	// repositoryDescName is the schema descriptor for name field.
+	repositoryDescName := repositoryFields[1].Descriptor()
+	// repository.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	repository.NameValidator = repositoryDescName.Validators[0].(func(string) error)
+	// repositoryDescFullName is the schema descriptor for full_name field.
+	repositoryDescFullName := repositoryFields[2].Descriptor()
+	// repository.FullNameValidator is a validator for the "full_name" field. It is called by the builders before save.
+	repository.FullNameValidator = repositoryDescFullName.Validators[0].(func(string) error)
+	// repositoryDescOwnerLogin is the schema descriptor for owner_login field.
+	repositoryDescOwnerLogin := repositoryFields[3].Descriptor()
+	// repository.OwnerLoginValidator is a validator for the "owner_login" field. It is called by the builders before save.
+	repository.OwnerLoginValidator = repositoryDescOwnerLogin.Validators[0].(func(string) error)
+	// repositoryDescPrivate is the schema descriptor for private field.
+	repositoryDescPrivate := repositoryFields[5].Descriptor()
+	// repository.DefaultPrivate holds the default value on creation for the private field.
+	repository.DefaultPrivate = repositoryDescPrivate.Default.(bool)
+	// repositoryDescArchived is the schema descriptor for archived field.
+	repositoryDescArchived := repositoryFields[6].Descriptor()
+	// repository.DefaultArchived holds the default value on creation for the archived field.
+	repository.DefaultArchived = repositoryDescArchived.Default.(bool)
+	// repositoryDescDisabled is the schema descriptor for disabled field.
+	repositoryDescDisabled := repositoryFields[7].Descriptor()
+	// repository.DefaultDisabled holds the default value on creation for the disabled field.
+	repository.DefaultDisabled = repositoryDescDisabled.Default.(bool)
+	// repositoryDescDefaultBranch is the schema descriptor for default_branch field.
+	repositoryDescDefaultBranch := repositoryFields[9].Descriptor()
+	// repository.DefaultDefaultBranch holds the default value on creation for the default_branch field.
+	repository.DefaultDefaultBranch = repositoryDescDefaultBranch.Default.(string)
+	// repositoryDescStargazersCount is the schema descriptor for stargazers_count field.
+	repositoryDescStargazersCount := repositoryFields[11].Descriptor()
+	// repository.DefaultStargazersCount holds the default value on creation for the stargazers_count field.
+	repository.DefaultStargazersCount = repositoryDescStargazersCount.Default.(int32)
+	// repositoryDescForksCount is the schema descriptor for forks_count field.
+	repositoryDescForksCount := repositoryFields[12].Descriptor()
+	// repository.DefaultForksCount holds the default value on creation for the forks_count field.
+	repository.DefaultForksCount = repositoryDescForksCount.Default.(int32)
+	// repositoryDescOpenIssuesCount is the schema descriptor for open_issues_count field.
+	repositoryDescOpenIssuesCount := repositoryFields[13].Descriptor()
+	// repository.DefaultOpenIssuesCount holds the default value on creation for the open_issues_count field.
+	repository.DefaultOpenIssuesCount = repositoryDescOpenIssuesCount.Default.(int32)
+	// repositoryDescCreatedAt is the schema descriptor for created_at field.
+	repositoryDescCreatedAt := repositoryFields[14].Descriptor()
+	// repository.DefaultCreatedAt holds the default value on creation for the created_at field.
+	repository.DefaultCreatedAt = repositoryDescCreatedAt.Default.(func() time.Time)
+	// repositoryDescUpdatedAt is the schema descriptor for updated_at field.
+	repositoryDescUpdatedAt := repositoryFields[15].Descriptor()
+	// repository.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	repository.DefaultUpdatedAt = repositoryDescUpdatedAt.Default.(func() time.Time)
+	// repository.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	repository.UpdateDefaultUpdatedAt = repositoryDescUpdatedAt.UpdateDefault.(func() time.Time)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescLogin is the schema descriptor for login field.

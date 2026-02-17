@@ -27,6 +27,11 @@ func NewGitHubService(client *github.Client, dao dao.DAO) *GitHubService {
 // repo: repository name
 // opts: options for listing issues (state, labels, etc.)
 func (s *GitHubService) FetchAndStoreIssues(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) error {
+	// Upsert repository metadata first.
+	if err := s.SyncRepository(ctx, owner, repo); err != nil {
+		return fmt.Errorf("failed to sync repository metadata: %w", err)
+	}
+
 	// Fetch issues from GitHub
 	issues, _, err := s.client.Issues.ListByRepo(ctx, owner, repo, opts)
 	if err != nil {
@@ -39,6 +44,11 @@ func (s *GitHubService) FetchAndStoreIssues(ctx context.Context, owner, repo str
 
 // FetchAndStoreAllIssues fetches all issues from a GitHub repository with pagination
 func (s *GitHubService) FetchAndStoreAllIssues(ctx context.Context, owner, repo string, state string) error {
+	// Upsert repository metadata first.
+	if err := s.SyncRepository(ctx, owner, repo); err != nil {
+		return fmt.Errorf("failed to sync repository metadata: %w", err)
+	}
+
 	opts := &github.IssueListByRepoOptions{
 		State: state,
 		ListOptions: github.ListOptions{
@@ -70,6 +80,15 @@ func (s *GitHubService) FetchAndStoreAllIssues(ctx context.Context, owner, repo 
 	}
 
 	return nil
+}
+
+// SyncRepository fetches repository metadata from GitHub and upserts it into the database.
+func (s *GitHubService) SyncRepository(ctx context.Context, owner, repo string) error {
+	ghRepo, _, err := s.client.Repositories.Get(ctx, owner, repo)
+	if err != nil {
+		return fmt.Errorf("failed to fetch repository %s/%s from GitHub: %w", owner, repo, err)
+	}
+	return s.dao.UpsertRepository(ctx, s.convertGitHubRepositoryToModel(ghRepo))
 }
 
 // persistIssues converts GitHub issues to DAO models and persists them
@@ -134,6 +153,21 @@ func (s *GitHubService) ListIssues(ctx context.Context, opts *dao.ListOptions) (
 	return s.dao.ListIssues(ctx, opts)
 }
 
+// GetRepositoryByID retrieves repository metadata by GitHub repository ID.
+func (s *GitHubService) GetRepositoryByID(ctx context.Context, id int64) (*dao.RepositoryModel, error) {
+	return s.dao.GetRepositoryByID(ctx, id)
+}
+
+// GetRepositoryByFullName retrieves repository metadata by full name (owner/name).
+func (s *GitHubService) GetRepositoryByFullName(ctx context.Context, fullName string) (*dao.RepositoryModel, error) {
+	return s.dao.GetRepositoryByFullName(ctx, fullName)
+}
+
+// ListRepositories retrieves repository metadata from the database.
+func (s *GitHubService) ListRepositories(ctx context.Context, opts *dao.RepositoryListOptions) ([]*dao.RepositoryModel, error) {
+	return s.dao.ListRepositories(ctx, opts)
+}
+
 // convertGitHubIssueToModel converts a GitHub issue to a DAO model
 func (s *GitHubService) convertGitHubIssueToModel(ghIssue *github.Issue) *dao.IssueModel {
 	model := &dao.IssueModel{
@@ -182,6 +216,47 @@ func (s *GitHubService) convertGitHubIssueToModel(ghIssue *github.Issue) *dao.Is
 		}
 	}
 
+	return model
+}
+
+// convertGitHubRepositoryToModel converts a GitHub repository to a DAO model.
+func (s *GitHubService) convertGitHubRepositoryToModel(ghRepo *github.Repository) *dao.RepositoryModel {
+	ownerLogin := ""
+	if ghRepo.Owner != nil {
+		ownerLogin = ghRepo.Owner.GetLogin()
+	}
+
+	model := &dao.RepositoryModel{
+		ID:              ghRepo.GetID(),
+		Name:            ghRepo.GetName(),
+		FullName:        ghRepo.GetFullName(),
+		OwnerLogin:      ownerLogin,
+		Description:     ghRepo.GetDescription(),
+		Private:         ghRepo.GetPrivate(),
+		Archived:        ghRepo.GetArchived(),
+		Disabled:        ghRepo.GetDisabled(),
+		HTMLURL:         ghRepo.GetHTMLURL(),
+		DefaultBranch:   ghRepo.GetDefaultBranch(),
+		Language:        ghRepo.GetLanguage(),
+		StargazersCount: int32(ghRepo.GetStargazersCount()),
+		ForksCount:      int32(ghRepo.GetForksCount()),
+		OpenIssuesCount: int32(ghRepo.GetOpenIssuesCount()),
+		CreatedAt:       ghRepo.GetCreatedAt().Time,
+		UpdatedAt:       ghRepo.GetUpdatedAt().Time,
+	}
+
+	if model.FullName == "" && model.OwnerLogin != "" && model.Name != "" {
+		model.FullName = model.OwnerLogin + "/" + model.Name
+	}
+	if model.DefaultBranch == "" {
+		model.DefaultBranch = "main"
+	}
+
+	// Set pushed_at if available.
+	if ghRepo.PushedAt != nil {
+		pushedAt := ghRepo.GetPushedAt().Time
+		model.PushedAt = &pushedAt
+	}
 	return model
 }
 

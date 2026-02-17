@@ -18,6 +18,8 @@ type Tx struct {
 	Label *LabelClient
 	// Milestone is the client for interacting with the Milestone builders.
 	Milestone *MilestoneClient
+	// Repository is the client for interacting with the Repository builders.
+	Repository *RepositoryClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -154,6 +156,7 @@ func (tx *Tx) init() {
 	tx.Issue = NewIssueClient(tx.config)
 	tx.Label = NewLabelClient(tx.config)
 	tx.Milestone = NewMilestoneClient(tx.config)
+	tx.Repository = NewRepositoryClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 
