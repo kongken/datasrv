@@ -7,7 +7,6 @@ import (
 
 	// mysql driver
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/kongken/datasrv/service/datasrv/internal/conf"
 )
 
 func NewApp() *app.App {
