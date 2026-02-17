@@ -15,6 +15,7 @@ import (
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/issue"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/label"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/milestone"
+	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/repository"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/user"
 )
 
@@ -76,10 +77,11 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			issue.Table:     issue.ValidColumn,
-			label.Table:     label.ValidColumn,
-			milestone.Table: milestone.ValidColumn,
-			user.Table:      user.ValidColumn,
+			issue.Table:      issue.ValidColumn,
+			label.Table:      label.ValidColumn,
+			milestone.Table:  milestone.ValidColumn,
+			repository.Table: repository.ValidColumn,
+			user.Table:       user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

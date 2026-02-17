@@ -4,10 +4,15 @@ go 1.25.5
 
 require (
 	butterfly.orx.me/core v0.0.0-20250621160607-8cd37657d336
+	connectrpc.com/connect v1.19.1
 	entgo.io/ent v0.14.5
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/golang/protobuf v1.5.4
 	github.com/google/go-github/v82 v82.0.1-0.20260206204523-c8fd3f74bcd3
 	github.com/lib/pq v1.11.2
+	github.com/twitchtv/twirp v8.1.3+incompatible
+	google.golang.org/grpc v1.71.0
+	google.golang.org/protobuf v1.36.9
 )
 
 require (
@@ -101,7 +106,5 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
-	google.golang.org/grpc v1.71.0 // indirect
-	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

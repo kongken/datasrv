@@ -8,6 +8,7 @@ import (
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/issue"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/label"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/milestone"
+	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/repository"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/user"
 
 	_ "github.com/lib/pq"
@@ -502,6 +503,166 @@ func (d *PostgresDAO) UpsertMilestone(ctx context.Context, milestoneModel *Miles
 	return nil
 }
 
+// CreateRepository creates a new repository.
+func (d *PostgresDAO) CreateRepository(ctx context.Context, repoModel *RepositoryModel) error {
+	creator := d.client.Repository.Create().
+		SetID(repoModel.ID).
+		SetName(repoModel.Name).
+		SetFullName(repoModel.FullName).
+		SetOwnerLogin(repoModel.OwnerLogin).
+		SetPrivate(repoModel.Private).
+		SetArchived(repoModel.Archived).
+		SetDisabled(repoModel.Disabled).
+		SetStargazersCount(repoModel.StargazersCount).
+		SetForksCount(repoModel.ForksCount).
+		SetOpenIssuesCount(repoModel.OpenIssuesCount)
+
+	if repoModel.Description != "" {
+		creator.SetDescription(repoModel.Description)
+	}
+	if repoModel.HTMLURL != "" {
+		creator.SetHTMLURL(repoModel.HTMLURL)
+	}
+	if repoModel.DefaultBranch != "" {
+		creator.SetDefaultBranch(repoModel.DefaultBranch)
+	}
+	if repoModel.Language != "" {
+		creator.SetLanguage(repoModel.Language)
+	}
+	if !repoModel.CreatedAt.IsZero() {
+		creator.SetCreatedAt(repoModel.CreatedAt)
+	}
+	if !repoModel.UpdatedAt.IsZero() {
+		creator.SetUpdatedAt(repoModel.UpdatedAt)
+	}
+	if repoModel.PushedAt != nil {
+		creator.SetPushedAt(*repoModel.PushedAt)
+	}
+
+	if _, err := creator.Save(ctx); err != nil {
+		return fmt.Errorf("failed to create repository: %w", err)
+	}
+	return nil
+}
+
+// GetRepositoryByID retrieves a repository by GitHub repository ID.
+func (d *PostgresDAO) GetRepositoryByID(ctx context.Context, id int64) (*RepositoryModel, error) {
+	repoEntity, err := d.client.Repository.Query().Where(repository.ID(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("repository not found: %w", err)
+		}
+		return nil, fmt.Errorf("failed to query repository: %w", err)
+	}
+	return d.entRepositoryToModel(repoEntity), nil
+}
+
+// GetRepositoryByFullName retrieves a repository by full name (owner/name).
+func (d *PostgresDAO) GetRepositoryByFullName(ctx context.Context, fullName string) (*RepositoryModel, error) {
+	repoEntity, err := d.client.Repository.Query().Where(repository.FullNameEQ(fullName)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("repository not found: %w", err)
+		}
+		return nil, fmt.Errorf("failed to query repository: %w", err)
+	}
+	return d.entRepositoryToModel(repoEntity), nil
+}
+
+// ListRepositories retrieves repositories with pagination and optional filters.
+func (d *PostgresDAO) ListRepositories(ctx context.Context, opts *RepositoryListOptions) ([]*RepositoryModel, error) {
+	if opts == nil {
+		opts = &RepositoryListOptions{}
+	}
+
+	query := d.client.Repository.Query().Order(repository.ByID())
+	if opts.OwnerLogin != "" {
+		query = query.Where(repository.OwnerLoginEQ(opts.OwnerLogin))
+	}
+	if !opts.IncludeArch {
+		query = query.Where(repository.ArchivedEQ(false))
+	}
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
+
+	repos, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query repositories: %w", err)
+	}
+
+	models := make([]*RepositoryModel, len(repos))
+	for i, repoEntity := range repos {
+		models[i] = d.entRepositoryToModel(repoEntity)
+	}
+	return models, nil
+}
+
+// UpsertRepository creates or updates a repository.
+func (d *PostgresDAO) UpsertRepository(ctx context.Context, repoModel *RepositoryModel) error {
+	_, err := d.client.Repository.Query().Where(repository.ID(repoModel.ID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return d.CreateRepository(ctx, repoModel)
+		}
+		return fmt.Errorf("failed to query repository: %w", err)
+	}
+
+	updater := d.client.Repository.UpdateOneID(repoModel.ID).
+		SetName(repoModel.Name).
+		SetFullName(repoModel.FullName).
+		SetOwnerLogin(repoModel.OwnerLogin).
+		SetPrivate(repoModel.Private).
+		SetArchived(repoModel.Archived).
+		SetDisabled(repoModel.Disabled).
+		SetStargazersCount(repoModel.StargazersCount).
+		SetForksCount(repoModel.ForksCount).
+		SetOpenIssuesCount(repoModel.OpenIssuesCount)
+
+	if repoModel.Description != "" {
+		updater.SetDescription(repoModel.Description)
+	} else {
+		updater.ClearDescription()
+	}
+	if repoModel.HTMLURL != "" {
+		updater.SetHTMLURL(repoModel.HTMLURL)
+	} else {
+		updater.ClearHTMLURL()
+	}
+	if repoModel.DefaultBranch != "" {
+		updater.SetDefaultBranch(repoModel.DefaultBranch)
+	}
+	if repoModel.Language != "" {
+		updater.SetLanguage(repoModel.Language)
+	} else {
+		updater.ClearLanguage()
+	}
+	if !repoModel.UpdatedAt.IsZero() {
+		updater.SetUpdatedAt(repoModel.UpdatedAt)
+	}
+	if repoModel.PushedAt != nil {
+		updater.SetPushedAt(*repoModel.PushedAt)
+	} else {
+		updater.ClearPushedAt()
+	}
+
+	if _, err := updater.Save(ctx); err != nil {
+		return fmt.Errorf("failed to update repository: %w", err)
+	}
+	return nil
+}
+
+// DeleteRepository deletes a repository by ID.
+func (d *PostgresDAO) DeleteRepository(ctx context.Context, id int64) error {
+	if err := d.client.Repository.DeleteOneID(id).Exec(ctx); err != nil {
+		return fmt.Errorf("failed to delete repository: %w", err)
+	}
+	return nil
+}
+
 // Helper functions to convert ent entities to models
 
 func (d *PostgresDAO) entIssueToModel(iss *ent.Issue) *IssueModel {
@@ -559,5 +720,30 @@ func (d *PostgresDAO) entMilestoneToModel(m *ent.Milestone) *MilestoneModel {
 		model.DueOn = m.DueOn
 	}
 
+	return model
+}
+
+func (d *PostgresDAO) entRepositoryToModel(r *ent.Repository) *RepositoryModel {
+	model := &RepositoryModel{
+		ID:              r.ID,
+		Name:            r.Name,
+		FullName:        r.FullName,
+		OwnerLogin:      r.OwnerLogin,
+		Description:     r.Description,
+		Private:         r.Private,
+		Archived:        r.Archived,
+		Disabled:        r.Disabled,
+		HTMLURL:         r.HTMLURL,
+		DefaultBranch:   r.DefaultBranch,
+		Language:        r.Language,
+		StargazersCount: r.StargazersCount,
+		ForksCount:      r.ForksCount,
+		OpenIssuesCount: r.OpenIssuesCount,
+		CreatedAt:       r.CreatedAt,
+		UpdatedAt:       r.UpdatedAt,
+	}
+	if r.PushedAt != nil {
+		model.PushedAt = r.PushedAt
+	}
 	return model
 }

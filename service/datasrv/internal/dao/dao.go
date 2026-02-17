@@ -69,12 +69,34 @@ type MilestoneDAO interface {
 	UpsertMilestone(ctx context.Context, milestone *MilestoneModel) error
 }
 
+// RepoDAO defines the interface for GitHub repository data access operations.
+type RepoDAO interface {
+	// CreateRepository creates a new repository.
+	CreateRepository(ctx context.Context, repo *RepositoryModel) error
+
+	// GetRepositoryByID retrieves a repository by GitHub repository ID.
+	GetRepositoryByID(ctx context.Context, id int64) (*RepositoryModel, error)
+
+	// GetRepositoryByFullName retrieves a repository by its full name (owner/name).
+	GetRepositoryByFullName(ctx context.Context, fullName string) (*RepositoryModel, error)
+
+	// ListRepositories retrieves repositories with pagination and optional filters.
+	ListRepositories(ctx context.Context, opts *RepositoryListOptions) ([]*RepositoryModel, error)
+
+	// UpsertRepository creates or updates a repository.
+	UpsertRepository(ctx context.Context, repo *RepositoryModel) error
+
+	// DeleteRepository deletes a repository by ID.
+	DeleteRepository(ctx context.Context, id int64) error
+}
+
 // DAO aggregates all DAO interfaces
 type DAO interface {
 	IssueDAO
 	UserDAO
 	LabelDAO
 	MilestoneDAO
+	RepoDAO
 }
 
 // ListOptions defines options for listing issues
@@ -84,23 +106,31 @@ type ListOptions struct {
 	State  string // "open", "closed", or "all"
 }
 
+// RepositoryListOptions defines options for listing repositories.
+type RepositoryListOptions struct {
+	Offset      int
+	Limit       int
+	OwnerLogin  string
+	IncludeArch bool
+}
+
 // IssueModel represents the issue data model
 type IssueModel struct {
-	ID         int64
-	Number     int32
-	Title      string
-	Body       string
-	State      string
-	Comments   int32
-	HTMLURL    string
-	Locked     bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	ClosedAt   *time.Time
-	UserID     int64
+	ID          int64
+	Number      int32
+	Title       string
+	Body        string
+	State       string
+	Comments    int32
+	HTMLURL     string
+	Locked      bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ClosedAt    *time.Time
+	UserID      int64
 	MilestoneID *int64
-	Labels     []int64 // Label IDs
-	Assignees  []int64 // User IDs
+	Labels      []int64 // Label IDs
+	Assignees   []int64 // User IDs
 }
 
 // UserModel represents the user data model
@@ -129,4 +159,25 @@ type MilestoneModel struct {
 	DueOn       *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+// RepositoryModel represents the GitHub repository data model.
+type RepositoryModel struct {
+	ID              int64
+	Name            string
+	FullName        string
+	OwnerLogin      string
+	Description     string
+	Private         bool
+	Archived        bool
+	Disabled        bool
+	HTMLURL         string
+	DefaultBranch   string
+	Language        string
+	StargazersCount int32
+	ForksCount      int32
+	OpenIssuesCount int32
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	PushedAt        *time.Time
 }

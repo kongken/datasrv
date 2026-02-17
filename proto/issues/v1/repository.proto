@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package issues.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/kongken/datasrv/pkg/proto/issues/v1;issuesv1";
+
+// Repository 表示一个 GitHub 仓库。
+message Repository {
+  // GitHub 仓库 ID。
+  int64 id = 1;
+
+  // 仓库短名称（不含 owner）。
+  string name = 2;
+
+  // 仓库全名（owner/name）。
+  string full_name = 3;
+
+  // 仓库拥有者登录名。
+  string owner_login = 4;
+
+  // 仓库描述。
+  string description = 5;
+
+  // 是否为私有仓库。
+  bool private = 6;
+
+  // 是否已归档。
+  bool archived = 7;
+
+  // 是否已禁用。
+  bool disabled = 8;
+
+  // 仓库 HTML URL。
+  string html_url = 9;
+
+  // 默认分支名。
+  string default_branch = 10;
+
+  // 主要语言。
+  string language = 11;
+
+  // Star 数。
+  int32 stargazers_count = 12;
+
+  // Fork 数。
+  int32 forks_count = 13;
+
+  // Open issue 数。
+  int32 open_issues_count = 14;
+
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 15;
+
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 16;
+
+  // 最近 push 时间。
+  google.protobuf.Timestamp pushed_at = 17;
+}
+
+// CreateRepositoryRequest 创建仓库请求。
+message CreateRepositoryRequest {
+  Repository repository = 1;
+}
+
+// CreateRepositoryResponse 创建仓库响应。
+message CreateRepositoryResponse {
+  Repository repository = 1;
+}
+
+// GetRepositoryRequest 查询单个仓库请求。
+message GetRepositoryRequest {
+  oneof selector {
+    // 按 GitHub 仓库 ID 查询。
+    int64 id = 1;
+
+    // 按仓库全名（owner/name）查询。
+    string full_name = 2;
+  }
+}
+
+// GetRepositoryResponse 查询单个仓库响应。
+message GetRepositoryResponse {
+  Repository repository = 1;
+}
+
+// ListRepositoriesRequest 查询仓库列表请求。
+message ListRepositoriesRequest {
+  // 列表偏移量。
+  int32 offset = 1;
+
+  // 返回条数上限。
+  int32 limit = 2;
+
+  // 按 owner 登录名过滤；为空则不过滤。
+  string owner_login = 3;
+
+  // 是否包含 archived 仓库。
+  bool include_archived = 4;
+}
+
+// ListRepositoriesResponse 查询仓库列表响应。
+message ListRepositoriesResponse {
+  repeated Repository repositories = 1;
+}
+
+// UpdateRepositoryRequest 更新仓库请求。
+message UpdateRepositoryRequest {
+  Repository repository = 1;
+}
+
+// UpdateRepositoryResponse 更新仓库响应。
+message UpdateRepositoryResponse {
+  Repository repository = 1;
+}
+
+// DeleteRepositoryRequest 删除仓库请求。
+message DeleteRepositoryRequest {
+  // 需要删除的 GitHub 仓库 ID。
+  int64 id = 1;
+}
+
+// DeleteRepositoryResponse 删除仓库响应。
+message DeleteRepositoryResponse {}
+
+// RepositoryService 提供 repo 管理 CRUD 接口。
+service RepositoryService {
+  // Create 创建仓库。
+  rpc CreateRepository(CreateRepositoryRequest) returns (CreateRepositoryResponse);
+
+  // Get 查询单个仓库。
+  rpc GetRepository(GetRepositoryRequest) returns (GetRepositoryResponse);
+
+  // List 查询仓库列表。
+  rpc ListRepositories(ListRepositoriesRequest) returns (ListRepositoriesResponse);
+
+  // Update 更新仓库。
+  rpc UpdateRepository(UpdateRepositoryRequest) returns (UpdateRepositoryResponse);
+
+  // Delete 删除仓库。
+  rpc DeleteRepository(DeleteRepositoryRequest) returns (DeleteRepositoryResponse);
+}

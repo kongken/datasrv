@@ -83,6 +83,32 @@ var (
 		Columns:    MilestonesColumns,
 		PrimaryKey: []*schema.Column{MilestonesColumns[0]},
 	}
+	// RepositoriesColumns holds the columns for the "repositories" table.
+	RepositoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "full_name", Type: field.TypeString, Unique: true},
+		{Name: "owner_login", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "private", Type: field.TypeBool, Default: false},
+		{Name: "archived", Type: field.TypeBool, Default: false},
+		{Name: "disabled", Type: field.TypeBool, Default: false},
+		{Name: "html_url", Type: field.TypeString, Nullable: true},
+		{Name: "default_branch", Type: field.TypeString, Default: "main"},
+		{Name: "language", Type: field.TypeString, Nullable: true},
+		{Name: "stargazers_count", Type: field.TypeInt32, Default: 0},
+		{Name: "forks_count", Type: field.TypeInt32, Default: 0},
+		{Name: "open_issues_count", Type: field.TypeInt32, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "pushed_at", Type: field.TypeTime, Nullable: true},
+	}
+	// RepositoriesTable holds the schema information for the "repositories" table.
+	RepositoriesTable = &schema.Table{
+		Name:       "repositories",
+		Columns:    RepositoriesColumns,
+		PrimaryKey: []*schema.Column{RepositoriesColumns[0]},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -110,6 +136,7 @@ var (
 		IssuesTable,
 		LabelsTable,
 		MilestonesTable,
+		RepositoriesTable,
 		UsersTable,
 	}
 )

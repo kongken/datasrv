@@ -15,6 +15,7 @@ import (
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/label"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/milestone"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/predicate"
+	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/repository"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao/ent/user"
 )
 
@@ -27,10 +28,11 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeIssue     = "Issue"
-	TypeLabel     = "Label"
-	TypeMilestone = "Milestone"
-	TypeUser      = "User"
+	TypeIssue      = "Issue"
+	TypeLabel      = "Label"
+	TypeMilestone  = "Milestone"
+	TypeRepository = "Repository"
+	TypeUser       = "User"
 )
 
 // IssueMutation represents an operation that mutates the Issue nodes in the graph.
@@ -2606,6 +2608,1329 @@ func (m *MilestoneMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *MilestoneMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Milestone edge %s", name)
+}
+
+// RepositoryMutation represents an operation that mutates the Repository nodes in the graph.
+type RepositoryMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int64
+	name                 *string
+	full_name            *string
+	owner_login          *string
+	description          *string
+	private              *bool
+	archived             *bool
+	disabled             *bool
+	html_url             *string
+	default_branch       *string
+	language             *string
+	stargazers_count     *int32
+	addstargazers_count  *int32
+	forks_count          *int32
+	addforks_count       *int32
+	open_issues_count    *int32
+	addopen_issues_count *int32
+	created_at           *time.Time
+	updated_at           *time.Time
+	pushed_at            *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*Repository, error)
+	predicates           []predicate.Repository
+}
+
+var _ ent.Mutation = (*RepositoryMutation)(nil)
+
+// repositoryOption allows management of the mutation configuration using functional options.
+type repositoryOption func(*RepositoryMutation)
+
+// newRepositoryMutation creates new mutation for the Repository entity.
+func newRepositoryMutation(c config, op Op, opts ...repositoryOption) *RepositoryMutation {
+	m := &RepositoryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRepository,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRepositoryID sets the ID field of the mutation.
+func withRepositoryID(id int64) repositoryOption {
+	return func(m *RepositoryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Repository
+		)
+		m.oldValue = func(ctx context.Context) (*Repository, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Repository.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRepository sets the old Repository of the mutation.
+func withRepository(node *Repository) repositoryOption {
+	return func(m *RepositoryMutation) {
+		m.oldValue = func(context.Context) (*Repository, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RepositoryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RepositoryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Repository entities.
+func (m *RepositoryMutation) SetID(id int64) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RepositoryMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RepositoryMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Repository.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *RepositoryMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *RepositoryMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *RepositoryMutation) ResetName() {
+	m.name = nil
+}
+
+// SetFullName sets the "full_name" field.
+func (m *RepositoryMutation) SetFullName(s string) {
+	m.full_name = &s
+}
+
+// FullName returns the value of the "full_name" field in the mutation.
+func (m *RepositoryMutation) FullName() (r string, exists bool) {
+	v := m.full_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFullName returns the old "full_name" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldFullName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFullName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFullName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFullName: %w", err)
+	}
+	return oldValue.FullName, nil
+}
+
+// ResetFullName resets all changes to the "full_name" field.
+func (m *RepositoryMutation) ResetFullName() {
+	m.full_name = nil
+}
+
+// SetOwnerLogin sets the "owner_login" field.
+func (m *RepositoryMutation) SetOwnerLogin(s string) {
+	m.owner_login = &s
+}
+
+// OwnerLogin returns the value of the "owner_login" field in the mutation.
+func (m *RepositoryMutation) OwnerLogin() (r string, exists bool) {
+	v := m.owner_login
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerLogin returns the old "owner_login" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldOwnerLogin(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerLogin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerLogin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerLogin: %w", err)
+	}
+	return oldValue.OwnerLogin, nil
+}
+
+// ResetOwnerLogin resets all changes to the "owner_login" field.
+func (m *RepositoryMutation) ResetOwnerLogin() {
+	m.owner_login = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *RepositoryMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *RepositoryMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *RepositoryMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[repository.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *RepositoryMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[repository.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *RepositoryMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, repository.FieldDescription)
+}
+
+// SetPrivate sets the "private" field.
+func (m *RepositoryMutation) SetPrivate(b bool) {
+	m.private = &b
+}
+
+// Private returns the value of the "private" field in the mutation.
+func (m *RepositoryMutation) Private() (r bool, exists bool) {
+	v := m.private
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrivate returns the old "private" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldPrivate(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrivate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrivate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrivate: %w", err)
+	}
+	return oldValue.Private, nil
+}
+
+// ResetPrivate resets all changes to the "private" field.
+func (m *RepositoryMutation) ResetPrivate() {
+	m.private = nil
+}
+
+// SetArchived sets the "archived" field.
+func (m *RepositoryMutation) SetArchived(b bool) {
+	m.archived = &b
+}
+
+// Archived returns the value of the "archived" field in the mutation.
+func (m *RepositoryMutation) Archived() (r bool, exists bool) {
+	v := m.archived
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArchived returns the old "archived" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldArchived(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArchived is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArchived requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArchived: %w", err)
+	}
+	return oldValue.Archived, nil
+}
+
+// ResetArchived resets all changes to the "archived" field.
+func (m *RepositoryMutation) ResetArchived() {
+	m.archived = nil
+}
+
+// SetDisabled sets the "disabled" field.
+func (m *RepositoryMutation) SetDisabled(b bool) {
+	m.disabled = &b
+}
+
+// Disabled returns the value of the "disabled" field in the mutation.
+func (m *RepositoryMutation) Disabled() (r bool, exists bool) {
+	v := m.disabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisabled returns the old "disabled" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldDisabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisabled: %w", err)
+	}
+	return oldValue.Disabled, nil
+}
+
+// ResetDisabled resets all changes to the "disabled" field.
+func (m *RepositoryMutation) ResetDisabled() {
+	m.disabled = nil
+}
+
+// SetHTMLURL sets the "html_url" field.
+func (m *RepositoryMutation) SetHTMLURL(s string) {
+	m.html_url = &s
+}
+
+// HTMLURL returns the value of the "html_url" field in the mutation.
+func (m *RepositoryMutation) HTMLURL() (r string, exists bool) {
+	v := m.html_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHTMLURL returns the old "html_url" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldHTMLURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHTMLURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHTMLURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHTMLURL: %w", err)
+	}
+	return oldValue.HTMLURL, nil
+}
+
+// ClearHTMLURL clears the value of the "html_url" field.
+func (m *RepositoryMutation) ClearHTMLURL() {
+	m.html_url = nil
+	m.clearedFields[repository.FieldHTMLURL] = struct{}{}
+}
+
+// HTMLURLCleared returns if the "html_url" field was cleared in this mutation.
+func (m *RepositoryMutation) HTMLURLCleared() bool {
+	_, ok := m.clearedFields[repository.FieldHTMLURL]
+	return ok
+}
+
+// ResetHTMLURL resets all changes to the "html_url" field.
+func (m *RepositoryMutation) ResetHTMLURL() {
+	m.html_url = nil
+	delete(m.clearedFields, repository.FieldHTMLURL)
+}
+
+// SetDefaultBranch sets the "default_branch" field.
+func (m *RepositoryMutation) SetDefaultBranch(s string) {
+	m.default_branch = &s
+}
+
+// DefaultBranch returns the value of the "default_branch" field in the mutation.
+func (m *RepositoryMutation) DefaultBranch() (r string, exists bool) {
+	v := m.default_branch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDefaultBranch returns the old "default_branch" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldDefaultBranch(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDefaultBranch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDefaultBranch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDefaultBranch: %w", err)
+	}
+	return oldValue.DefaultBranch, nil
+}
+
+// ResetDefaultBranch resets all changes to the "default_branch" field.
+func (m *RepositoryMutation) ResetDefaultBranch() {
+	m.default_branch = nil
+}
+
+// SetLanguage sets the "language" field.
+func (m *RepositoryMutation) SetLanguage(s string) {
+	m.language = &s
+}
+
+// Language returns the value of the "language" field in the mutation.
+func (m *RepositoryMutation) Language() (r string, exists bool) {
+	v := m.language
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLanguage returns the old "language" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldLanguage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLanguage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLanguage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLanguage: %w", err)
+	}
+	return oldValue.Language, nil
+}
+
+// ClearLanguage clears the value of the "language" field.
+func (m *RepositoryMutation) ClearLanguage() {
+	m.language = nil
+	m.clearedFields[repository.FieldLanguage] = struct{}{}
+}
+
+// LanguageCleared returns if the "language" field was cleared in this mutation.
+func (m *RepositoryMutation) LanguageCleared() bool {
+	_, ok := m.clearedFields[repository.FieldLanguage]
+	return ok
+}
+
+// ResetLanguage resets all changes to the "language" field.
+func (m *RepositoryMutation) ResetLanguage() {
+	m.language = nil
+	delete(m.clearedFields, repository.FieldLanguage)
+}
+
+// SetStargazersCount sets the "stargazers_count" field.
+func (m *RepositoryMutation) SetStargazersCount(i int32) {
+	m.stargazers_count = &i
+	m.addstargazers_count = nil
+}
+
+// StargazersCount returns the value of the "stargazers_count" field in the mutation.
+func (m *RepositoryMutation) StargazersCount() (r int32, exists bool) {
+	v := m.stargazers_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStargazersCount returns the old "stargazers_count" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldStargazersCount(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStargazersCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStargazersCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStargazersCount: %w", err)
+	}
+	return oldValue.StargazersCount, nil
+}
+
+// AddStargazersCount adds i to the "stargazers_count" field.
+func (m *RepositoryMutation) AddStargazersCount(i int32) {
+	if m.addstargazers_count != nil {
+		*m.addstargazers_count += i
+	} else {
+		m.addstargazers_count = &i
+	}
+}
+
+// AddedStargazersCount returns the value that was added to the "stargazers_count" field in this mutation.
+func (m *RepositoryMutation) AddedStargazersCount() (r int32, exists bool) {
+	v := m.addstargazers_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetStargazersCount resets all changes to the "stargazers_count" field.
+func (m *RepositoryMutation) ResetStargazersCount() {
+	m.stargazers_count = nil
+	m.addstargazers_count = nil
+}
+
+// SetForksCount sets the "forks_count" field.
+func (m *RepositoryMutation) SetForksCount(i int32) {
+	m.forks_count = &i
+	m.addforks_count = nil
+}
+
+// ForksCount returns the value of the "forks_count" field in the mutation.
+func (m *RepositoryMutation) ForksCount() (r int32, exists bool) {
+	v := m.forks_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldForksCount returns the old "forks_count" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldForksCount(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldForksCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldForksCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldForksCount: %w", err)
+	}
+	return oldValue.ForksCount, nil
+}
+
+// AddForksCount adds i to the "forks_count" field.
+func (m *RepositoryMutation) AddForksCount(i int32) {
+	if m.addforks_count != nil {
+		*m.addforks_count += i
+	} else {
+		m.addforks_count = &i
+	}
+}
+
+// AddedForksCount returns the value that was added to the "forks_count" field in this mutation.
+func (m *RepositoryMutation) AddedForksCount() (r int32, exists bool) {
+	v := m.addforks_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetForksCount resets all changes to the "forks_count" field.
+func (m *RepositoryMutation) ResetForksCount() {
+	m.forks_count = nil
+	m.addforks_count = nil
+}
+
+// SetOpenIssuesCount sets the "open_issues_count" field.
+func (m *RepositoryMutation) SetOpenIssuesCount(i int32) {
+	m.open_issues_count = &i
+	m.addopen_issues_count = nil
+}
+
+// OpenIssuesCount returns the value of the "open_issues_count" field in the mutation.
+func (m *RepositoryMutation) OpenIssuesCount() (r int32, exists bool) {
+	v := m.open_issues_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOpenIssuesCount returns the old "open_issues_count" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldOpenIssuesCount(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOpenIssuesCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOpenIssuesCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOpenIssuesCount: %w", err)
+	}
+	return oldValue.OpenIssuesCount, nil
+}
+
+// AddOpenIssuesCount adds i to the "open_issues_count" field.
+func (m *RepositoryMutation) AddOpenIssuesCount(i int32) {
+	if m.addopen_issues_count != nil {
+		*m.addopen_issues_count += i
+	} else {
+		m.addopen_issues_count = &i
+	}
+}
+
+// AddedOpenIssuesCount returns the value that was added to the "open_issues_count" field in this mutation.
+func (m *RepositoryMutation) AddedOpenIssuesCount() (r int32, exists bool) {
+	v := m.addopen_issues_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOpenIssuesCount resets all changes to the "open_issues_count" field.
+func (m *RepositoryMutation) ResetOpenIssuesCount() {
+	m.open_issues_count = nil
+	m.addopen_issues_count = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RepositoryMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RepositoryMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RepositoryMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *RepositoryMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *RepositoryMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *RepositoryMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (m *RepositoryMutation) SetPushedAt(t time.Time) {
+	m.pushed_at = &t
+}
+
+// PushedAt returns the value of the "pushed_at" field in the mutation.
+func (m *RepositoryMutation) PushedAt() (r time.Time, exists bool) {
+	v := m.pushed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPushedAt returns the old "pushed_at" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldPushedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPushedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPushedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPushedAt: %w", err)
+	}
+	return oldValue.PushedAt, nil
+}
+
+// ClearPushedAt clears the value of the "pushed_at" field.
+func (m *RepositoryMutation) ClearPushedAt() {
+	m.pushed_at = nil
+	m.clearedFields[repository.FieldPushedAt] = struct{}{}
+}
+
+// PushedAtCleared returns if the "pushed_at" field was cleared in this mutation.
+func (m *RepositoryMutation) PushedAtCleared() bool {
+	_, ok := m.clearedFields[repository.FieldPushedAt]
+	return ok
+}
+
+// ResetPushedAt resets all changes to the "pushed_at" field.
+func (m *RepositoryMutation) ResetPushedAt() {
+	m.pushed_at = nil
+	delete(m.clearedFields, repository.FieldPushedAt)
+}
+
+// Where appends a list predicates to the RepositoryMutation builder.
+func (m *RepositoryMutation) Where(ps ...predicate.Repository) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RepositoryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RepositoryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Repository, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RepositoryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RepositoryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Repository).
+func (m *RepositoryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RepositoryMutation) Fields() []string {
+	fields := make([]string, 0, 16)
+	if m.name != nil {
+		fields = append(fields, repository.FieldName)
+	}
+	if m.full_name != nil {
+		fields = append(fields, repository.FieldFullName)
+	}
+	if m.owner_login != nil {
+		fields = append(fields, repository.FieldOwnerLogin)
+	}
+	if m.description != nil {
+		fields = append(fields, repository.FieldDescription)
+	}
+	if m.private != nil {
+		fields = append(fields, repository.FieldPrivate)
+	}
+	if m.archived != nil {
+		fields = append(fields, repository.FieldArchived)
+	}
+	if m.disabled != nil {
+		fields = append(fields, repository.FieldDisabled)
+	}
+	if m.html_url != nil {
+		fields = append(fields, repository.FieldHTMLURL)
+	}
+	if m.default_branch != nil {
+		fields = append(fields, repository.FieldDefaultBranch)
+	}
+	if m.language != nil {
+		fields = append(fields, repository.FieldLanguage)
+	}
+	if m.stargazers_count != nil {
+		fields = append(fields, repository.FieldStargazersCount)
+	}
+	if m.forks_count != nil {
+		fields = append(fields, repository.FieldForksCount)
+	}
+	if m.open_issues_count != nil {
+		fields = append(fields, repository.FieldOpenIssuesCount)
+	}
+	if m.created_at != nil {
+		fields = append(fields, repository.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, repository.FieldUpdatedAt)
+	}
+	if m.pushed_at != nil {
+		fields = append(fields, repository.FieldPushedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RepositoryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case repository.FieldName:
+		return m.Name()
+	case repository.FieldFullName:
+		return m.FullName()
+	case repository.FieldOwnerLogin:
+		return m.OwnerLogin()
+	case repository.FieldDescription:
+		return m.Description()
+	case repository.FieldPrivate:
+		return m.Private()
+	case repository.FieldArchived:
+		return m.Archived()
+	case repository.FieldDisabled:
+		return m.Disabled()
+	case repository.FieldHTMLURL:
+		return m.HTMLURL()
+	case repository.FieldDefaultBranch:
+		return m.DefaultBranch()
+	case repository.FieldLanguage:
+		return m.Language()
+	case repository.FieldStargazersCount:
+		return m.StargazersCount()
+	case repository.FieldForksCount:
+		return m.ForksCount()
+	case repository.FieldOpenIssuesCount:
+		return m.OpenIssuesCount()
+	case repository.FieldCreatedAt:
+		return m.CreatedAt()
+	case repository.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case repository.FieldPushedAt:
+		return m.PushedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RepositoryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case repository.FieldName:
+		return m.OldName(ctx)
+	case repository.FieldFullName:
+		return m.OldFullName(ctx)
+	case repository.FieldOwnerLogin:
+		return m.OldOwnerLogin(ctx)
+	case repository.FieldDescription:
+		return m.OldDescription(ctx)
+	case repository.FieldPrivate:
+		return m.OldPrivate(ctx)
+	case repository.FieldArchived:
+		return m.OldArchived(ctx)
+	case repository.FieldDisabled:
+		return m.OldDisabled(ctx)
+	case repository.FieldHTMLURL:
+		return m.OldHTMLURL(ctx)
+	case repository.FieldDefaultBranch:
+		return m.OldDefaultBranch(ctx)
+	case repository.FieldLanguage:
+		return m.OldLanguage(ctx)
+	case repository.FieldStargazersCount:
+		return m.OldStargazersCount(ctx)
+	case repository.FieldForksCount:
+		return m.OldForksCount(ctx)
+	case repository.FieldOpenIssuesCount:
+		return m.OldOpenIssuesCount(ctx)
+	case repository.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case repository.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case repository.FieldPushedAt:
+		return m.OldPushedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Repository field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepositoryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case repository.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case repository.FieldFullName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFullName(v)
+		return nil
+	case repository.FieldOwnerLogin:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerLogin(v)
+		return nil
+	case repository.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case repository.FieldPrivate:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrivate(v)
+		return nil
+	case repository.FieldArchived:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArchived(v)
+		return nil
+	case repository.FieldDisabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisabled(v)
+		return nil
+	case repository.FieldHTMLURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHTMLURL(v)
+		return nil
+	case repository.FieldDefaultBranch:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDefaultBranch(v)
+		return nil
+	case repository.FieldLanguage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLanguage(v)
+		return nil
+	case repository.FieldStargazersCount:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStargazersCount(v)
+		return nil
+	case repository.FieldForksCount:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetForksCount(v)
+		return nil
+	case repository.FieldOpenIssuesCount:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOpenIssuesCount(v)
+		return nil
+	case repository.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case repository.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case repository.FieldPushedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPushedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Repository field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RepositoryMutation) AddedFields() []string {
+	var fields []string
+	if m.addstargazers_count != nil {
+		fields = append(fields, repository.FieldStargazersCount)
+	}
+	if m.addforks_count != nil {
+		fields = append(fields, repository.FieldForksCount)
+	}
+	if m.addopen_issues_count != nil {
+		fields = append(fields, repository.FieldOpenIssuesCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RepositoryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case repository.FieldStargazersCount:
+		return m.AddedStargazersCount()
+	case repository.FieldForksCount:
+		return m.AddedForksCount()
+	case repository.FieldOpenIssuesCount:
+		return m.AddedOpenIssuesCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepositoryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case repository.FieldStargazersCount:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStargazersCount(v)
+		return nil
+	case repository.FieldForksCount:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddForksCount(v)
+		return nil
+	case repository.FieldOpenIssuesCount:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOpenIssuesCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Repository numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RepositoryMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(repository.FieldDescription) {
+		fields = append(fields, repository.FieldDescription)
+	}
+	if m.FieldCleared(repository.FieldHTMLURL) {
+		fields = append(fields, repository.FieldHTMLURL)
+	}
+	if m.FieldCleared(repository.FieldLanguage) {
+		fields = append(fields, repository.FieldLanguage)
+	}
+	if m.FieldCleared(repository.FieldPushedAt) {
+		fields = append(fields, repository.FieldPushedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RepositoryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RepositoryMutation) ClearField(name string) error {
+	switch name {
+	case repository.FieldDescription:
+		m.ClearDescription()
+		return nil
+	case repository.FieldHTMLURL:
+		m.ClearHTMLURL()
+		return nil
+	case repository.FieldLanguage:
+		m.ClearLanguage()
+		return nil
+	case repository.FieldPushedAt:
+		m.ClearPushedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Repository nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RepositoryMutation) ResetField(name string) error {
+	switch name {
+	case repository.FieldName:
+		m.ResetName()
+		return nil
+	case repository.FieldFullName:
+		m.ResetFullName()
+		return nil
+	case repository.FieldOwnerLogin:
+		m.ResetOwnerLogin()
+		return nil
+	case repository.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case repository.FieldPrivate:
+		m.ResetPrivate()
+		return nil
+	case repository.FieldArchived:
+		m.ResetArchived()
+		return nil
+	case repository.FieldDisabled:
+		m.ResetDisabled()
+		return nil
+	case repository.FieldHTMLURL:
+		m.ResetHTMLURL()
+		return nil
+	case repository.FieldDefaultBranch:
+		m.ResetDefaultBranch()
+		return nil
+	case repository.FieldLanguage:
+		m.ResetLanguage()
+		return nil
+	case repository.FieldStargazersCount:
+		m.ResetStargazersCount()
+		return nil
+	case repository.FieldForksCount:
+		m.ResetForksCount()
+		return nil
+	case repository.FieldOpenIssuesCount:
+		m.ResetOpenIssuesCount()
+		return nil
+	case repository.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case repository.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case repository.FieldPushedAt:
+		m.ResetPushedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Repository field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RepositoryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RepositoryMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RepositoryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RepositoryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RepositoryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RepositoryMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RepositoryMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Repository unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RepositoryMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Repository edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.
