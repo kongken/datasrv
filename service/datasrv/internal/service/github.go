@@ -243,33 +243,3 @@ func (s *GitHubService) UpdateIssueFromGitHub(ctx context.Context, owner, repo s
 	// Same as SyncIssue - the persistIssues method handles both create and update
 	return s.SyncIssue(ctx, owner, repo, issueNumber)
 }
-
-// Config holds the service configuration
-type Config struct {
-	DatabaseDSN string
-	GitHubToken string
-}
-
-// NewGitHubServiceWithConfig creates a new GitHub service with configuration
-func NewGitHubServiceWithConfig(ctx context.Context, cfg *Config) (*GitHubService, error) {
-	// Create GitHub client
-	var client *github.Client
-	if cfg.GitHubToken != "" {
-		client = github.NewClient(nil).WithAuthToken(cfg.GitHubToken)
-	} else {
-		client = github.NewClient(nil)
-	}
-
-	// Create DAO
-	pgDAO, err := dao.NewPostgresDAO(cfg.DatabaseDSN)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create PostgreSQL DAO: %w", err)
-	}
-
-	// Run migrations
-	if err := pgDAO.Migrate(ctx); err != nil {
-		return nil, fmt.Errorf("failed to run database migrations: %w", err)
-	}
-
-	return NewGitHubService(client, pgDAO), nil
-}

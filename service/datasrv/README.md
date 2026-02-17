@@ -4,17 +4,56 @@ GitHub Issues 数据服务，用于从 GitHub 抓取 issues 并持久化到数�
 
 ## 架构设计
 
+### 项目结构
+
+```
+service/datasrv/
+├── internal/
+│   ├── app.go              # 应用初始化
+│   ├── conf/
+│   │   └── conf.go         # 配置管理
+│   ├── dao/
+│   │   ├── dao.go          # DAO 接口定义
+│   │   ├── postgres.go     # PostgreSQL 实现（使用 ent ORM）
+│   │   └── ent/            # ent 生成的代码
+│   │       └── schema/     # 数据库 schema 定义
+│   └── service/
+│       └── github.go       # GitHub service 业务逻辑
+└── README.md
+```
+
+### 配置管理
+
+配置通过 `internal/conf/conf.go` 统一管理，支持：
+
+- 从环境变量加载配置
+- 使用默认配置
+- 自定义配置
+
+支持的环境变量：
+
+- `DATABASE_DSN` - 数据库连接字符串（必需）
+- `DB_DRIVER` - 数据库驱动（默认：postgres）
+- `DB_MAX_OPEN_CONNS` - 最大连接数（默认：25）
+- `DB_MAX_IDLE_CONNS` - 最大空闲连接数（默认：10）
+- `GITHUB_TOKEN` - GitHub 访问令牌（可选）
+- `GITHUB_BASE_URL` - GitHub API Base URL（可选，用于 GitHub Enterprise）
+- `SERVER_HOST` - 服务器主机（默认：0.0.0.0）
+- `SERVER_PORT` - 服务器端口（默认：8080）
+
+### 应用初始化
+
+`internal/app.go` 负责应用的初始化和资源管理：
+
+- 加载配置
+- 初始化 DAO 层（根据配置选择数据库驱动）
+- 初始化 GitHub 客户端
+- 创建 GitHub Service
+- 提供资源清理方法
+
 ### DAO 层抽象
 
 为了支持未来切换到 MongoDB 或其他数据库，DAO 层采用了接口抽象设计：
-
-```
-service/datasrv/internal/dao/
-├── dao.go          # DAO 接口定义
-├── postgres.go     # PostgreSQL 实现（使用 ent ORM）
-└── ent/           # ent 生成的代码
-    └── schema/    # 数据库 schema 定义
-```
 
 #### DAO 接口
 
@@ -74,16 +113,12 @@ psql -c "CREATE DATABASE github_issues;"
 ```bash
 export DATABASE_DSN="host=localhost port=5432 user=postgres password=postgres dbname=github_issues sslmode=disable"
 export GITHUB_TOKEN="your_github_token"  # 可选，提高 API 限制
+export DB_DRIVER="postgres"              # 数据库驱动类型
 ```
 
-### 3. 运行示例程序
+### 3. 在代码中使用
 
-```bash
-cd service/datasrv/cmd/example
-go run main.go
-```
-
-### 4. 在代码中使用
+#### 方式一：从环境变量加载配置
 
 ```go
 package main
@@ -92,32 +127,91 @@ import (
     "context"
     "log"
     
-    "github.com/kongken/datasrv/service/datasrv/internal/service"
+    "github.com/kongken/datasrv/service/datasrv/internal"
     "github.com/kongken/datasrv/service/datasrv/internal/dao"
 )
 
 func main() {
     ctx := context.Background()
     
-    // 创建服务
-    cfg := &service.Config{
-        DatabaseDSN: "host=localhost port=5432 user=postgres dbname=github_issues sslmode=disable",
-        GitHubToken: "your_token",
-    }
-    
-    svc, err := service.NewGitHubServiceWithConfig(ctx, cfg)
+    // 从环境变量创建应用
+    app, err := internal.NewAppFromEnv(ctx)
     if err != nil {
         log.Fatal(err)
     }
+    defer app.Close()
     
-    // 获取并存储所有 open issues
-    err = svc.FetchAndStoreAllIssues(ctx, "golang", "go", "open")
+    // 使用 GitHubService
+    err = app.GitHubService.FetchAndStoreAllIssues(ctx, "golang", "go", "open")
     if err != nil {
         log.Fatal(err)
     }
     
     // 列出数据库中的 issues
-    issues, err := svc.ListIssues(ctx, &dao.ListOptions{
+    issues, err := app.GitHubService.ListIssues(ctx, &dao.ListOptions{
+        Limit:  10,
+        State:  "open",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    for _, issue := range issues {
+        log.Printf("Issue #%d: %s\n", issue.Number, issue.Title)
+    }
+}
+```
+
+#### 方式二：使用自定义配置
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    
+    "github.com/kongken/datasrv/service/datasrv/internal"
+    "github.com/kongken/datasrv/service/datasrv/internal/conf"
+    "github.com/kongken/datasrv/service/datasrv/internal/dao"
+)
+
+func main() {
+    ctx := context.Background()
+    
+    // 创建自定义配置
+    cfg := &conf.Config{
+        Database: conf.DatabaseConfig{
+            Driver:       "postgres",
+            DSN:          "host=localhost port=5432 user=postgres dbname=github_issues sslmode=disable",
+            MaxOpenConns: 25,
+            MaxIdleConns: 10,
+        },
+        GitHub: conf.GitHubConfig{
+            Token:   "your_github_token",
+            BaseURL: "", // 留空使用 github.com，或设置为 GitHub Enterprise URL
+        },
+        Server: conf.ServerConfig{
+            Host: "0.0.0.0",
+            Port: 8080,
+        },
+    }
+    
+    // 使用配置创建应用
+    app, err := internal.NewApp(ctx, cfg)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer app.Close()
+    
+    // 使用 GitHubService
+    err = app.GitHubService.FetchAndStoreAllIssues(ctx, "golang", "go", "open")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // 列出数据库中的 issues
+    issues, err := app.GitHubService.ListIssues(ctx, &dao.ListOptions{
         Limit:  10,
         State:  "open",
     })
@@ -182,37 +276,75 @@ func main() {
 
 1. 创建 `dao/mongo.go` 实现 `DAO` 接口
 2. 使用相同的数据模型（`IssueModel`、`UserModel` 等）
-3. Service 层代码无需修改
+3. 在 `app.go` 的 `initDAO` 方法中添加 MongoDB 分支
+4. Service 层和配置层代码无需修改
 
 示例：
 
 ```go
 // dao/mongo.go
+package dao
+
+import (
+    "context"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
+)
+
 type MongoDB struct {
     client *mongo.Client
+    db     *mongo.Database
 }
 
 func NewMongoDB(uri string) (*MongoDB, error) {
-    // 实现 MongoDB 连接
+    client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
+    if err != nil {
+        return nil, err
+    }
+    
+    return &MongoDB{
+        client: client,
+        db:     client.Database("github_issues"),
+    }, nil
 }
 
 func (m *MongoDB) CreateIssue(ctx context.Context, issue *IssueModel) error {
-    // 实现 MongoDB 插入逻辑
+    collection := m.db.Collection("issues")
+    _, err := collection.InsertOne(ctx, issue)
+    return err
 }
 
 // ... 实现其他接口方法
 ```
 
-然后在创建服务时选择使用 MongoDB：
+然后在 `app.go` 中添加 MongoDB 支持：
 
 ```go
-// 使用 MongoDB
-mongoDB, err := dao.NewMongoDB("mongodb://localhost:27017")
-svc := service.NewGitHubService(githubClient, mongoDB)
+func (a *App) initDAO(ctx context.Context) error {
+    switch a.Config.Database.Driver {
+    case "postgres", "postgresql":
+        // ... 现有代码
+    
+    case "mongodb", "mongo":
+        mongoDB, err := dao.NewMongoDB(a.Config.Database.DSN)
+        if err != nil {
+            return fmt.Errorf("failed to create MongoDB DAO: %w", err)
+        }
+        a.DAO = mongoDB
+        log.Println("MongoDB DAO initialized successfully")
+        return nil
+    
+    default:
+        return fmt.Errorf("unsupported database driver: %s", a.Config.Database.Driver)
+    }
+}
+```
 
-// 或使用 PostgreSQL
-postgresDAO, err := dao.NewPostgresDAO(dsnString)
-svc := service.NewGitHubService(githubClient, postgresDAO)
+使用时只需设置环境变量：
+
+```bash
+export DB_DRIVER="mongodb"
+export DATABASE_DSN="mongodb://localhost:27017"
 ```
 
 ## API 方法
