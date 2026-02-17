@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package admin.v1;
+
+option go_package = "github.com/kongken/monkey/pkg/proto/admin/v1;adminv1";
