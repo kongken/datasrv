@@ -102,18 +102,3 @@ func (a *App) Close() error {
 	
 	return nil
 }
-
-// NewAppWithDefaultConfig creates a new application with default configuration
-func NewAppWithDefaultConfig(ctx context.Context) (*App, error) {
-	cfg := conf.NewDefaultConfig()
-	return NewApp(ctx, cfg)
-}
-
-// NewAppFromEnv creates a new application by loading configuration from environment variables
-func NewAppFromEnv(ctx context.Context) (*App, error) {
-	cfg, err := conf.LoadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load configuration: %w", err)
-	}
-	return NewApp(ctx, cfg)
-}

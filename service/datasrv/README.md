@@ -24,22 +24,29 @@ service/datasrv/
 
 ### 配置管理
 
-配置通过 `internal/conf/conf.go` 统一管理，支持：
+配置通过 `internal/conf/conf.go` 统一管理，使用 YAML 格式。
 
-- 从环境变量加载配置
-- 使用默认配置
-- 自定义配置
+配置文件示例：`service/datasrv/config.yaml.example`
 
-支持的环境变量：
+配置结构：
 
-- `DATABASE_DSN` - 数据库连接字符串（必需）
-- `DB_DRIVER` - 数据库驱动（默认：postgres）
-- `DB_MAX_OPEN_CONNS` - 最大连接数（默认：25）
-- `DB_MAX_IDLE_CONNS` - 最大空闲连接数（默认：10）
-- `GITHUB_TOKEN` - GitHub 访问令牌（可选）
-- `GITHUB_BASE_URL` - GitHub API Base URL（可选，用于 GitHub Enterprise）
-- `SERVER_HOST` - 服务器主机（默认：0.0.0.0）
-- `SERVER_PORT` - 服务器端口（默认：8080）
+```yaml
+database:
+  driver: string          # 数据库驱动（postgres, mongodb）
+  dsn: string            # 数据库连接字符串
+  max_open_conns: int    # 最大连接数
+  max_idle_conns: int    # 最大空闲连接数
+
+github:
+  token: string          # GitHub 访问令牌
+  base_url: string       # GitHub API Base URL（用于 GitHub Enterprise）
+
+server:
+  host: string           # 服务器主机
+  port: int              # 服务器端口
+```
+
+> **注意**：配置由框架自动加载（如使用 viper、go-micro config 等），`conf.Config` 结构体定义了配置格式，框架会自动将 YAML 文件映射到该结构体。
 
 ### 应用初始化
 
@@ -108,61 +115,38 @@ createdb github_issues
 psql -c "CREATE DATABASE github_issues;"
 ```
 
-### 2. 设置环境变量
+### 2. 配置文件
+
+复制示例配置文件并根据需要修改：
 
 ```bash
-export DATABASE_DSN="host=localhost port=5432 user=postgres password=postgres dbname=github_issues sslmode=disable"
-export GITHUB_TOKEN="your_github_token"  # 可选，提高 API 限制
-export DB_DRIVER="postgres"              # 数据库驱动类型
+cp service/datasrv/config.yaml.example config.yaml
 ```
+
+编辑 `config.yaml` 配置文件：
+
+```yaml
+# Database configuration
+database:
+  driver: postgres
+  dsn: "host=localhost port=5432 user=postgres password=postgres dbname=github_issues sslmode=disable"
+  max_open_conns: 25
+  max_idle_conns: 10
+
+# GitHub API configuration
+github:
+  token: "your_github_token"  # 可选，提高 API 限制
+  base_url: ""                # 留空使用 github.com，或设置为 GitHub Enterprise URL
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8080
+```
+
+> **注意**：框架会自动加载配置文件，无需手动初始化配置。
 
 ### 3. 在代码中使用
-
-#### 方式一：从环境变量加载配置
-
-```go
-package main
-
-import (
-    "context"
-    "log"
-    
-    "github.com/kongken/datasrv/service/datasrv/internal"
-    "github.com/kongken/datasrv/service/datasrv/internal/dao"
-)
-
-func main() {
-    ctx := context.Background()
-    
-    // 从环境变量创建应用
-    app, err := internal.NewAppFromEnv(ctx)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer app.Close()
-    
-    // 使用 GitHubService
-    err = app.GitHubService.FetchAndStoreAllIssues(ctx, "golang", "go", "open")
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    // 列出数据库中的 issues
-    issues, err := app.GitHubService.ListIssues(ctx, &dao.ListOptions{
-        Limit:  10,
-        State:  "open",
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    for _, issue := range issues {
-        log.Printf("Issue #%d: %s\n", issue.Number, issue.Title)
-    }
-}
-```
-
-#### 方式二：使用自定义配置
 
 ```go
 package main
@@ -179,23 +163,10 @@ import (
 func main() {
     ctx := context.Background()
     
-    // 创建自定义配置
-    cfg := &conf.Config{
-        Database: conf.DatabaseConfig{
-            Driver:       "postgres",
-            DSN:          "host=localhost port=5432 user=postgres dbname=github_issues sslmode=disable",
-            MaxOpenConns: 25,
-            MaxIdleConns: 10,
-        },
-        GitHub: conf.GitHubConfig{
-            Token:   "your_github_token",
-            BaseURL: "", // 留空使用 github.com，或设置为 GitHub Enterprise URL
-        },
-        Server: conf.ServerConfig{
-            Host: "0.0.0.0",
-            Port: 8080,
-        },
-    }
+    // 配置由框架自动加载（如 viper 等）
+    // 这里假设配置已经通过框架加载到 cfg 变量中
+    var cfg *conf.Config
+    // cfg = loadConfigByFramework() // 框架自动加载配置
     
     // 使用配置创建应用
     app, err := internal.NewApp(ctx, cfg)
@@ -204,7 +175,7 @@ func main() {
     }
     defer app.Close()
     
-    // 使用 GitHubService
+    // 使用 GitHubService 获取并存储 issues
     err = app.GitHubService.FetchAndStoreAllIssues(ctx, "golang", "go", "open")
     if err != nil {
         log.Fatal(err)
@@ -340,11 +311,14 @@ func (a *App) initDAO(ctx context.Context) error {
 }
 ```
 
-使用时只需设置环境变量：
+使用时只需修改配置文件：
 
-```bash
-export DB_DRIVER="mongodb"
-export DATABASE_DSN="mongodb://localhost:27017"
+```yaml
+database:
+  driver: mongodb
+  dsn: "mongodb://localhost:27017/github_issues"
+  max_open_conns: 25
+  max_idle_conns: 10
 ```
 
 ## API 方法

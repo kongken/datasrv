@@ -1,0 +1,37 @@
+# GitHub Issues Data Service Configuration
+
+# Database configuration
+database:
+  # Database driver: postgres, mongodb
+  driver: postgres
+  
+  # Data source name (DSN) for database connection
+  # For PostgreSQL: host=localhost port=5432 user=postgres password=postgres dbname=github_issues sslmode=disable
+  # For MongoDB: mongodb://localhost:27017/github_issues
+  dsn: "host=localhost port=5432 user=postgres password=postgres dbname=github_issues sslmode=disable"
+  
+  # Maximum number of open connections to the database
+  max_open_conns: 25
+  
+  # Maximum number of connections in the idle connection pool
+  max_idle_conns: 10
+
+# GitHub API configuration
+github:
+  # GitHub personal access token for API authentication
+  # Get your token from: https://github.com/settings/tokens
+  # Leave empty for unauthenticated requests (rate limit: 60 req/hour)
+  # With token: 5000 req/hour
+  token: ""
+  
+  # GitHub API base URL (for GitHub Enterprise Server)
+  # Leave empty for public GitHub (https://api.github.com)
+  base_url: ""
+
+# Server configuration
+server:
+  # Server host address
+  host: "0.0.0.0"
+  
+  # Server port
+  port: 8080
