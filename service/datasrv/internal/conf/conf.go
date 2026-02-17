@@ -1,5 +1,9 @@
 package conf
 
+var (
+	Conf = new(Config)
+)
+
 // Config holds all configuration for the datasrv service
 type Config struct {
 	// Database configuration
@@ -10,6 +14,12 @@ type Config struct {
 
 	// Server configuration
 	Server ServerConfig `yaml:"server" json:"server"`
+}
+
+func (Config) Print() {}
+
+type GithubConfig struct {
+	Token string
 }
 
 // DatabaseConfig holds database configuration
