@@ -11,6 +11,7 @@ require (
 	github.com/lib/pq v1.11.2
 	github.com/twitchtv/twirp v8.1.3+incompatible
 	go.mongodb.org/mongo-driver/v2 v2.0.0
+	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.9
 	gorm.io/driver/postgres v1.6.0
