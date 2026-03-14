@@ -1,0 +1,13 @@
+name: persist-github-issues-sync
+status: proposed
+createdAt: 2026-03-14
+owner: codex
+labels:
+  - github
+  - issues
+  - sync
+  - storage
+artifacts:
+  - proposal.md
+  - design.md
+  - tasks.md
