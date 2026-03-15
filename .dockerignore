@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.vscode
+coverage.out
+dist
+tmp
+docs
+openspec
+**/*_test.go
