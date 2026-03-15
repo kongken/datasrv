@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -141,7 +142,7 @@ func assertFeedStoreLifecycle(t *testing.T, store FeedStore) {
 	t.Helper()
 
 	ctx := context.Background()
-	sourceID := "feed-integration"
+	sourceID := uniqueIntegrationID(t, "feed")
 	source, err := store.UpsertFeedSource(ctx, FeedSource{
 		ID:          sourceID,
 		URL:         "https://example.com/feed.xml",
@@ -164,11 +165,13 @@ func assertFeedStoreLifecycle(t *testing.T, store FeedStore) {
 	}
 
 	published := time.Now().UTC().Round(time.Second)
+	contentID := uniqueIntegrationID(t, "item")
+	identity := uniqueIntegrationID(t, "guid")
 	persisted, err := store.UpsertFeedContents(ctx, sourceID, []FeedContent{{
-		ID:           "item-integration",
+		ID:           contentID,
 		FeedSourceID: sourceID,
-		Identity:     "guid-integration",
-		GUID:         "guid-integration",
+		Identity:     identity,
+		GUID:         identity,
 		Title:        "Integration Entry",
 		PublishedAt:  published,
 		FetchedAt:    published,
@@ -181,10 +184,10 @@ func assertFeedStoreLifecycle(t *testing.T, store FeedStore) {
 	}
 
 	if _, err := store.UpsertFeedContents(ctx, sourceID, []FeedContent{{
-		ID:           "item-integration",
+		ID:           contentID,
 		FeedSourceID: sourceID,
-		Identity:     "guid-integration",
-		GUID:         "guid-integration",
+		Identity:     identity,
+		GUID:         identity,
 		Title:        "Integration Entry Updated",
 		PublishedAt:  published,
 		FetchedAt:    published,
@@ -225,4 +228,9 @@ func assertFeedStoreLifecycle(t *testing.T, store FeedStore) {
 	if err := store.DeleteFeedSource(ctx, sourceID); err != nil {
 		t.Fatalf("DeleteFeedSource() error = %v", err)
 	}
+}
+
+func uniqueIntegrationID(t *testing.T, prefix string) string {
+	t.Helper()
+	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
 }

@@ -132,11 +132,11 @@ jobs:
         run: go mod download
 
       - name: Run DB integration tests
-        run: go test ./service/datasrv/internal/dao -run 'Test(MongoSyncStore|GormSyncStore)_UpsertAndCheckpoint' -count=1 -v
+        run: go test ./service/datasrv/internal/dao -run 'Test(MongoSyncStore|GormSyncStore)_(UpsertAndCheckpoint|FeedSourceContentAndCheckpoint)' -count=1 -v
 
       - name: Integration summary
         run: |
           echo "## Integration Test Summary" >> "$GITHUB_STEP_SUMMARY"
           echo "- Mongo: enabled via service container" >> "$GITHUB_STEP_SUMMARY"
           echo "- Postgres: enabled via service container" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Command: \\`go test ./service/datasrv/internal/dao -run 'Test(MongoSyncStore|GormSyncStore)_UpsertAndCheckpoint' -count=1 -v\\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Command: \\`go test ./service/datasrv/internal/dao -run 'Test(MongoSyncStore|GormSyncStore)_(UpsertAndCheckpoint|FeedSourceContentAndCheckpoint)' -count=1 -v\\`" >> "$GITHUB_STEP_SUMMARY"
