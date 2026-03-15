@@ -6,13 +6,16 @@ This repository hosts the `datasrv` Go service.
 - Entry point: `service/datasrv/cmd/main.go`
 - App wiring: `service/datasrv/internal/app.go`
 - Config types: `service/datasrv/internal/conf/conf.go`
-- Protobuf source: `proto/issues/v1/issue.proto`
-- Generated protobuf files: `pkg/proto/issues/v1/`
+- Protobuf source dir: `proto/*`
+- Generated protobuf files: `pkg/proto/*`
 - Data layer (Ent): `service/datasrv/internal/dao/ent/`
 
 ## Working Rules
 - Keep changes focused and minimal.
 - Do not modify generated files manually unless the user explicitly asks.
+- APIs are managed via protobuf definitions under `proto/`; update `.proto` files there when API contracts change.
+- After any protobuf change, run `buf generate` to regenerate code and include generated updates in the same change.
+- Development order for API changes: define/update protobuf API first, then prioritize gRPC handler implementation before other interface layers.
 - Prefer `rg` for searching and `go test ./...` for validation.
 - This service uses the butterfly framework (`butterfly.orx.me/core`).
 - Preserve existing butterfly wiring unless the task explicitly requires startup or lifecycle changes.
@@ -23,6 +26,7 @@ This repository hosts the `datasrv` Go service.
 - Run tests: `go test ./...`
 - Run service: `go run ./service/datasrv/cmd`
 - Format code: `gofmt -w <file>`
+- Regenerate protobuf code: `buf generate`
 
 ## Code Style
 - Follow standard Go formatting and idioms.

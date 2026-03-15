@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package feeds.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/kongken/datasrv/pkg/proto/feeds/v1;feedsv1";
+
+message FeedSource {
+  string id = 1;
+  string url = 2;
+  string display_name = 3;
+  string description = 4;
+  string site_url = 5;
+  bool enabled = 6;
+  string etag = 7;
+  string last_modified = 8;
+  google.protobuf.Timestamp last_synced_at = 9;
+  google.protobuf.Timestamp last_success_at = 10;
+  string last_run_status = 11;
+  string last_error = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message FeedContent {
+  string id = 1;
+  string feed_source_id = 2;
+  string identity = 3;
+  string guid = 4;
+  string title = 5;
+  string summary = 6;
+  string content = 7;
+  string link = 8;
+  string author = 9;
+  repeated string categories = 10;
+  google.protobuf.Timestamp published_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp fetched_at = 13;
+}
+
+message FeedSyncResult {
+  string feed_source_id = 1;
+  int32 fetched = 2;
+  int32 persisted = 3;
+  string error = 4;
+}
+
+message FeedSyncStatus {
+  string feed_source_id = 1;
+  google.protobuf.Timestamp last_synced_at = 2;
+  google.protobuf.Timestamp last_success_at = 3;
+  string last_run_status = 4;
+  string last_error = 5;
+  string etag = 6;
+  string last_modified = 7;
+}
+
+message ListFeedSourcesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListFeedSourcesResponse {
+  repeated FeedSource sources = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool has_next = 4;
+}
+
+message GetFeedSourceRequest {
+  string id = 1;
+}
+
+message CreateFeedSourceRequest {
+  FeedSource source = 1;
+}
+
+message UpdateFeedSourceRequest {
+  FeedSource source = 1;
+}
+
+message DeleteFeedSourceRequest {
+  string id = 1;
+}
+
+message DeleteFeedSourceResponse {
+  string id = 1;
+}
+
+message SyncFeedsRequest {
+  string feed_source_id = 1;
+}
+
+message SyncFeedsResponse {
+  google.protobuf.Timestamp started_at = 1;
+  google.protobuf.Timestamp finished_at = 2;
+  repeated FeedSyncResult results = 3;
+}
+
+message GetFeedSyncStatusResponse {
+  google.protobuf.Timestamp last_started_at = 1;
+  google.protobuf.Timestamp last_finished_at = 2;
+  bool running = 3;
+  repeated FeedSyncResult last_results = 4;
+  repeated FeedSyncStatus statuses = 5;
+}
+
+message ListFeedContentsRequest {
+  string feed_source_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListFeedContentsResponse {
+  repeated FeedContent contents = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool has_next = 4;
+}
+
+message GetFeedContentRequest {
+  string id = 1;
+}
+
+message GetFeedContentResponse {
+  FeedContent content = 1;
+  FeedSource source = 2;
+}
+
+service FeedSyncAdminService {
+  rpc ListFeedSources(ListFeedSourcesRequest) returns (ListFeedSourcesResponse);
+  rpc GetFeedSource(GetFeedSourceRequest) returns (FeedSource);
+  rpc CreateFeedSource(CreateFeedSourceRequest) returns (FeedSource);
+  rpc UpdateFeedSource(UpdateFeedSourceRequest) returns (FeedSource);
+  rpc DeleteFeedSource(DeleteFeedSourceRequest) returns (DeleteFeedSourceResponse);
+  rpc SyncFeeds(SyncFeedsRequest) returns (SyncFeedsResponse);
+  rpc GetFeedSyncStatus(google.protobuf.Empty) returns (GetFeedSyncStatusResponse);
+}
+
+service FeedQueryService {
+  rpc ListFeeds(ListFeedSourcesRequest) returns (ListFeedSourcesResponse);
+  rpc ListFeedContents(ListFeedContentsRequest) returns (ListFeedContentsResponse);
+  rpc GetFeedContent(GetFeedContentRequest) returns (GetFeedContentResponse);
+}

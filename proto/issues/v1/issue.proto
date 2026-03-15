@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package issues.v1;
 
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/kongken/datasrv/pkg/proto/issues/v1;issuesv1";
@@ -52,6 +53,9 @@ message Issue {
 
   // 是否被锁定
   bool locked = 15;
+
+  // AI 生成或外部写入的摘要
+  string ai_summary = 16;
 }
 
 // User 表示 GitHub 用户
@@ -124,4 +128,111 @@ message IssueComment {
 
   // 评论的 HTML URL
   string html_url = 6;
+}
+
+message SyncIssuesRequest {
+  // Optional: sync a single repository in owner/repo format.
+  // Empty means sync all configured repositories.
+  string repo = 1;
+}
+
+message SyncRepoResult {
+  string repo = 1;
+  int32 fetched = 2;
+  int32 persisted = 3;
+  string error = 4;
+}
+
+message SyncIssuesResponse {
+  google.protobuf.Timestamp started_at = 1;
+  google.protobuf.Timestamp finished_at = 2;
+  repeated SyncRepoResult results = 3;
+}
+
+message GetSyncConfigResponse {
+  bool enabled = 1;
+  repeated string repos = 2;
+  int32 interval_seconds = 3;
+  int32 page_size = 4;
+  int32 max_pages_per_run = 5;
+  int32 request_timeout_seconds = 6;
+  string storage_driver = 7;
+  bool github_token_configured = 8;
+}
+
+message UpdateSyncConfigRequest {
+  bool enabled = 1;
+  repeated string repos = 2;
+  int32 interval_seconds = 3;
+  int32 page_size = 4;
+  int32 max_pages_per_run = 5;
+  int32 request_timeout_seconds = 6;
+}
+
+message SyncCheckpoint {
+  string repo = 1;
+  google.protobuf.Timestamp last_synced_at = 2;
+  google.protobuf.Timestamp last_issue_updated_at = 3;
+  string last_run_status = 4;
+  string last_error = 5;
+}
+
+message GetSyncStatusResponse {
+  google.protobuf.Timestamp last_started_at = 1;
+  google.protobuf.Timestamp last_finished_at = 2;
+  bool running = 3;
+  repeated SyncRepoResult last_results = 4;
+  repeated SyncCheckpoint checkpoints = 5;
+}
+
+message ListIssuesRequest {
+  // owner/repo
+  string repo = 1;
+  // open, closed, all
+  string state = 2;
+  // 1-based page index
+  int32 page = 3;
+  // default by server when <= 0
+  int32 page_size = 4;
+}
+
+message ListIssuesResponse {
+  repeated Issue issues = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool has_next = 4;
+}
+
+message GetIssueRequest {
+  string repo = 1;
+  oneof selector {
+    int64 issue_id = 2;
+    int32 number = 3;
+  }
+}
+
+message GetIssueResponse {
+  Issue issue = 1;
+}
+
+message UpdateIssueAISummaryRequest {
+  string repo = 1;
+  oneof selector {
+    int64 issue_id = 2;
+    int32 number = 3;
+  }
+  string ai_summary = 4;
+}
+
+service IssueSyncAdminService {
+  rpc SyncIssues(SyncIssuesRequest) returns (SyncIssuesResponse);
+  rpc GetSyncConfig(google.protobuf.Empty) returns (GetSyncConfigResponse);
+  rpc UpdateSyncConfig(UpdateSyncConfigRequest) returns (GetSyncConfigResponse);
+  rpc GetSyncStatus(google.protobuf.Empty) returns (GetSyncStatusResponse);
+  rpc UpdateIssueAISummary(UpdateIssueAISummaryRequest) returns (GetIssueResponse);
+}
+
+service IssueQueryService {
+  rpc ListIssues(ListIssuesRequest) returns (ListIssuesResponse);
+  rpc GetIssue(GetIssueRequest) returns (GetIssueResponse);
 }

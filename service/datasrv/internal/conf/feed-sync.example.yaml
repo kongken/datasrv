@@ -1,0 +1,40 @@
+# Minimal runtime configuration examples for RSS/Atom feed sync.
+
+# Option A: PostgreSQL + GORM
+storage:
+  driver: postgres
+  postgres_dsn: "host=127.0.0.1 user=postgres password=postgres dbname=datasrv port=5432 sslmode=disable"
+
+feed_sync:
+  enabled: true
+  interval_seconds: 300
+  request_timeout_seconds: 15
+  sources:
+    - id: "example-feed"
+      url: "https://example.com/feed.xml"
+      display_name: "Example Feed"
+      description: "Primary RSS source"
+      site_url: "https://example.com"
+      enabled: true
+
+---
+# Option B: MongoDB
+storage:
+  driver: mongo
+  mongo_uri: "mongodb://127.0.0.1:27017"
+  mongo_db: "datasrv"
+
+feed_sync:
+  enabled: true
+  interval_seconds: 300
+  request_timeout_seconds: 15
+  sources:
+    - id: "example-feed"
+      url: "https://example.com/feed.xml"
+      display_name: "Example Feed"
+      enabled: true
+
+# Verification notes:
+# 1. Start the service and call FeedSyncAdminService/ListFeedSources to confirm the configured source is seeded.
+# 2. Call FeedSyncAdminService/SyncFeeds with feed_source_id="example-feed" and verify persisted results are returned.
+# 3. Call FeedQueryService/ListFeedContents with the same source id and confirm entries are returned in reverse chronological order.

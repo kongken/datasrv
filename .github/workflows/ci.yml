@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOFLAGS: -buildvcs=false
+  # Optional: set DATASRV_GITHUB_TOKEN in repository secrets for real GitHub API tests.
+  DATASRV_GITHUB_TOKEN: ${{ secrets.DATASRV_GITHUB_TOKEN }}
+
+jobs:
+  proto:
+    name: Proto & Codegen Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache: true
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Install protoc-gen-twirp
+        run: |
+          go install github.com/twitchtv/twirp/protoc-gen-twirp@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Lint proto
+        run: buf lint
+
+      - name: Generate proto
+        run: buf generate
+
+      - name: Verify generated code is up to date
+        run: git diff --exit-code
+
+  unit:
+    name: Unit Test (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.25.x"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Run unit tests (race + coverage)
+        run: go test ./... -race -covermode=atomic -coverprofile=coverage.out
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.go }}
+          path: coverage.out
+          if-no-files-found: error
+
+      - name: Test summary
+        run: |
+          echo "## Unit Test Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Go version: \\`${{ matrix.go }}\\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Command: \\`go test ./... -race -covermode=atomic -coverprofile=coverage.out\\`" >> "$GITHUB_STEP_SUMMARY"
+
+  integration-db:
+    name: Integration Test (Mongo + Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: datasrv
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="echo 'db.runCommand({ ping: 1 }).ok' | mongosh localhost:27017/test --quiet"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATASRV_TEST_POSTGRES_DSN: host=127.0.0.1 user=postgres password=postgres dbname=datasrv port=5432 sslmode=disable
+      DATASRV_TEST_MONGO_URI: mongodb://127.0.0.1:27017
+      DATASRV_TEST_MONGO_DB: datasrv
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Run DB integration tests
+        run: go test ./service/datasrv/internal/dao -run 'Test(MongoSyncStore|GormSyncStore)_(UpsertAndCheckpoint|FeedSourceContentAndCheckpoint)' -count=1 -v
+
+      - name: Integration summary
+        run: |
+          echo "## Integration Test Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Mongo: enabled via service container" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Postgres: enabled via service container" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Command: \\`go test ./service/datasrv/internal/dao -run 'Test(MongoSyncStore|GormSyncStore)_(UpsertAndCheckpoint|FeedSourceContentAndCheckpoint)' -count=1 -v\\`" >> "$GITHUB_STEP_SUMMARY"
