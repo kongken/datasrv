@@ -25,6 +25,7 @@ var (
 	syncService        *service.IssueSyncService
 	feedSyncService    *service.FeedSyncService
 	adminGRPC          *service.IssueSyncAdminGRPCServer
+	adminAuthGRPC      *service.AdminAuthGRPCServer
 	queryGRPC          *service.IssueQueryGRPCServer
 	feedAdminGRPC      *service.FeedSyncAdminGRPCServer
 	feedQueryGRPC      *service.FeedQueryGRPCServer
@@ -55,6 +56,9 @@ func NewApp() *app.App {
 func registerGRPC(server *grpc.Server) {
 	if adminGRPC != nil {
 		issuesv1.RegisterIssueSyncAdminServiceServer(server, adminGRPC)
+	}
+	if adminAuthGRPC != nil {
+		issuesv1.RegisterAdminAuthServiceServer(server, adminAuthGRPC)
 	}
 	if queryGRPC != nil {
 		issuesv1.RegisterIssueQueryServiceServer(server, queryGRPC)
@@ -112,6 +116,7 @@ func initSyncComponents() error {
 	syncService = service.NewIssueSyncService(syncStore, conf.Conf.GitHub, conf.Conf.GitHubSync)
 	feedSyncService = service.NewFeedSyncService(feedStore, conf.Conf.FeedSync, nil)
 	adminGRPC = service.NewIssueSyncAdminGRPCServer(syncStore, syncService, conf.Conf)
+	adminAuthGRPC = service.NewAdminAuthGRPCServer(conf.Conf)
 	queryGRPC = service.NewIssueQueryGRPCServer(syncStore)
 	feedAdminGRPC = service.NewFeedSyncAdminGRPCServer(feedStore, feedSyncService, conf.Conf)
 	feedQueryGRPC = service.NewFeedQueryGRPCServer(feedStore)

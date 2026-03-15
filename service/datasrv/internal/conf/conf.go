@@ -23,6 +23,9 @@ type Config struct {
 
 	// Server configuration
 	Server ServerConfig `yaml:"server" json:"server"`
+
+	// Admin login configuration
+	Admin AdminConfig `yaml:"admin" json:"admin"`
 }
 
 func (Config) Print() {}
@@ -111,4 +114,13 @@ type ServerConfig struct {
 
 	// Port is the server port
 	Port int `yaml:"port" json:"port"`
+}
+
+// AdminConfig holds admin login credentials for management access.
+type AdminConfig struct {
+	// User is the admin login username.
+	User string `yaml:"user" json:"user"`
+
+	// Password is the admin login password.
+	Password string `yaml:"password" json:"password"`
 }

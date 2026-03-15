@@ -26,6 +26,8 @@ const (
 	IssueSyncAdminServiceName = "issues.v1.IssueSyncAdminService"
 	// IssueQueryServiceName is the fully-qualified name of the IssueQueryService service.
 	IssueQueryServiceName = "issues.v1.IssueQueryService"
+	// AdminAuthServiceName is the fully-qualified name of the AdminAuthService service.
+	AdminAuthServiceName = "issues.v1.AdminAuthService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -57,6 +59,9 @@ const (
 	// IssueQueryServiceGetIssueProcedure is the fully-qualified name of the IssueQueryService's
 	// GetIssue RPC.
 	IssueQueryServiceGetIssueProcedure = "/issues.v1.IssueQueryService/GetIssue"
+	// AdminAuthServiceAdminLoginProcedure is the fully-qualified name of the AdminAuthService's
+	// AdminLogin RPC.
+	AdminAuthServiceAdminLoginProcedure = "/issues.v1.AdminAuthService/AdminLogin"
 )
 
 // IssueSyncAdminServiceClient is a client for the issues.v1.IssueSyncAdminService service.
@@ -327,4 +332,74 @@ func (UnimplementedIssueQueryServiceHandler) ListIssues(context.Context, *connec
 
 func (UnimplementedIssueQueryServiceHandler) GetIssue(context.Context, *connect.Request[v1.GetIssueRequest]) (*connect.Response[v1.GetIssueResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueQueryService.GetIssue is not implemented"))
+}
+
+// AdminAuthServiceClient is a client for the issues.v1.AdminAuthService service.
+type AdminAuthServiceClient interface {
+	AdminLogin(context.Context, *connect.Request[v1.AdminLoginRequest]) (*connect.Response[v1.AdminLoginResponse], error)
+}
+
+// NewAdminAuthServiceClient constructs a client for the issues.v1.AdminAuthService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewAdminAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminAuthServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	adminAuthServiceMethods := v1.File_issues_v1_issue_proto.Services().ByName("AdminAuthService").Methods()
+	return &adminAuthServiceClient{
+		adminLogin: connect.NewClient[v1.AdminLoginRequest, v1.AdminLoginResponse](
+			httpClient,
+			baseURL+AdminAuthServiceAdminLoginProcedure,
+			connect.WithSchema(adminAuthServiceMethods.ByName("AdminLogin")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// adminAuthServiceClient implements AdminAuthServiceClient.
+type adminAuthServiceClient struct {
+	adminLogin *connect.Client[v1.AdminLoginRequest, v1.AdminLoginResponse]
+}
+
+// AdminLogin calls issues.v1.AdminAuthService.AdminLogin.
+func (c *adminAuthServiceClient) AdminLogin(ctx context.Context, req *connect.Request[v1.AdminLoginRequest]) (*connect.Response[v1.AdminLoginResponse], error) {
+	return c.adminLogin.CallUnary(ctx, req)
+}
+
+// AdminAuthServiceHandler is an implementation of the issues.v1.AdminAuthService service.
+type AdminAuthServiceHandler interface {
+	AdminLogin(context.Context, *connect.Request[v1.AdminLoginRequest]) (*connect.Response[v1.AdminLoginResponse], error)
+}
+
+// NewAdminAuthServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewAdminAuthServiceHandler(svc AdminAuthServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminAuthServiceMethods := v1.File_issues_v1_issue_proto.Services().ByName("AdminAuthService").Methods()
+	adminAuthServiceAdminLoginHandler := connect.NewUnaryHandler(
+		AdminAuthServiceAdminLoginProcedure,
+		svc.AdminLogin,
+		connect.WithSchema(adminAuthServiceMethods.ByName("AdminLogin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/issues.v1.AdminAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case AdminAuthServiceAdminLoginProcedure:
+			adminAuthServiceAdminLoginHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedAdminAuthServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminAuthServiceHandler struct{}
+
+func (UnimplementedAdminAuthServiceHandler) AdminLogin(context.Context, *connect.Request[v1.AdminLoginRequest]) (*connect.Response[v1.AdminLoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.AdminAuthService.AdminLogin is not implemented"))
 }
