@@ -37,12 +37,13 @@ var (
 
 func NewApp() *app.App {
 	app := core.New(&app.Config{
-		Config:  conf.Conf,
-		Service: "datasrv",
-		// Router:  http.Router,
+		Config:       conf.Conf,
+		Service:      "datasrv",
+		Router:       setupHTTPRouter,
 		GRPCRegister: registerGRPC,
 		InitFunc: []func() error{
 			initSyncComponents,
+			initGatewayHandler,
 			startSyncScheduler,
 		},
 		TeardownFunc: []func() error{

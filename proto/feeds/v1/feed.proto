@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package feeds.v1;
 
+import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -130,17 +131,60 @@ message GetFeedContentResponse {
 }
 
 service FeedSyncAdminService {
-  rpc ListFeedSources(ListFeedSourcesRequest) returns (ListFeedSourcesResponse);
-  rpc GetFeedSource(GetFeedSourceRequest) returns (FeedSource);
-  rpc CreateFeedSource(CreateFeedSourceRequest) returns (FeedSource);
-  rpc UpdateFeedSource(UpdateFeedSourceRequest) returns (FeedSource);
-  rpc DeleteFeedSource(DeleteFeedSourceRequest) returns (DeleteFeedSourceResponse);
-  rpc SyncFeeds(SyncFeedsRequest) returns (SyncFeedsResponse);
-  rpc GetFeedSyncStatus(google.protobuf.Empty) returns (GetFeedSyncStatusResponse);
+  rpc ListFeedSources(ListFeedSourcesRequest) returns (ListFeedSourcesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/feed-sources"
+    };
+  }
+  rpc GetFeedSource(GetFeedSourceRequest) returns (FeedSource) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/feed-sources/{id}"
+    };
+  }
+  rpc CreateFeedSource(CreateFeedSourceRequest) returns (FeedSource) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/feed-sources"
+      body: "*"
+    };
+  }
+  rpc UpdateFeedSource(UpdateFeedSourceRequest) returns (FeedSource) {
+    option (google.api.http) = {
+      patch: "/api/v1/admin/feed-sources"
+      body: "*"
+    };
+  }
+  rpc DeleteFeedSource(DeleteFeedSourceRequest) returns (DeleteFeedSourceResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/admin/feed-sources/{id}"
+    };
+  }
+  rpc SyncFeeds(SyncFeedsRequest) returns (SyncFeedsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/feeds:sync"
+      body: "*"
+    };
+  }
+  rpc GetFeedSyncStatus(google.protobuf.Empty) returns (GetFeedSyncStatusResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/feeds/sync-status"
+    };
+  }
 }
 
 service FeedQueryService {
-  rpc ListFeeds(ListFeedSourcesRequest) returns (ListFeedSourcesResponse);
-  rpc ListFeedContents(ListFeedContentsRequest) returns (ListFeedContentsResponse);
-  rpc GetFeedContent(GetFeedContentRequest) returns (GetFeedContentResponse);
+  rpc ListFeeds(ListFeedSourcesRequest) returns (ListFeedSourcesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/feeds"
+    };
+  }
+  rpc ListFeedContents(ListFeedContentsRequest) returns (ListFeedContentsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/feed-contents"
+    };
+  }
+  rpc GetFeedContent(GetFeedContentRequest) returns (GetFeedContentResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/feed-contents/{id}"
+    };
+  }
 }
