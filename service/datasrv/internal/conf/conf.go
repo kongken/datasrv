@@ -18,6 +18,9 @@ type Config struct {
 	// GitHub issue sync job configuration
 	GitHubSync GitHubSyncConfig `yaml:"github_sync" json:"github_sync"`
 
+	// RSS feed sync job configuration
+	FeedSync FeedSyncConfig `yaml:"feed_sync" json:"feed_sync"`
+
 	// Server configuration
 	Server ServerConfig `yaml:"server" json:"server"`
 }
@@ -75,6 +78,30 @@ type GitHubSyncConfig struct {
 
 	// RequestTimeoutSeconds controls GitHub API timeout.
 	RequestTimeoutSeconds int `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+}
+
+// FeedSourceConfig defines a configured RSS/Atom source.
+type FeedSourceConfig struct {
+	ID          string `yaml:"id" json:"id"`
+	URL         string `yaml:"url" json:"url"`
+	DisplayName string `yaml:"display_name" json:"display_name"`
+	Description string `yaml:"description" json:"description"`
+	SiteURL     string `yaml:"site_url" json:"site_url"`
+	Enabled     bool   `yaml:"enabled" json:"enabled"`
+}
+
+// FeedSyncConfig holds scheduled RSS sync options.
+type FeedSyncConfig struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+
+	// IntervalSeconds controls scheduler frequency.
+	IntervalSeconds int `yaml:"interval_seconds" json:"interval_seconds"`
+
+	// RequestTimeoutSeconds controls outbound RSS fetch timeout.
+	RequestTimeoutSeconds int `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+
+	// Sources seeds feed source definitions into the backing store.
+	Sources []FeedSourceConfig `yaml:"sources" json:"sources"`
 }
 
 // ServerConfig holds server configuration

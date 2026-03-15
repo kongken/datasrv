@@ -8,6 +8,7 @@ import (
 
 	"butterfly.orx.me/core"
 	"butterfly.orx.me/core/app"
+	feedsv1 "github.com/kongken/datasrv/pkg/proto/feeds/v1"
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
 	"github.com/kongken/datasrv/service/datasrv/internal/conf"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao"
@@ -19,12 +20,18 @@ import (
 )
 
 var (
-	syncStore      dao.SyncStore
-	syncService    *service.IssueSyncService
-	adminGRPC      *service.IssueSyncAdminGRPCServer
-	queryGRPC      *service.IssueQueryGRPCServer
-	schedulerStopC chan struct{}
-	schedulerStop  context.CancelFunc
+	syncStore          dao.SyncStore
+	feedStore          dao.FeedStore
+	syncService        *service.IssueSyncService
+	feedSyncService    *service.FeedSyncService
+	adminGRPC          *service.IssueSyncAdminGRPCServer
+	queryGRPC          *service.IssueQueryGRPCServer
+	feedAdminGRPC      *service.FeedSyncAdminGRPCServer
+	feedQueryGRPC      *service.FeedQueryGRPCServer
+	schedulerStopC     chan struct{}
+	schedulerStop      context.CancelFunc
+	feedSchedulerStopC chan struct{}
+	feedSchedulerStop  context.CancelFunc
 )
 
 func NewApp() *app.App {
@@ -52,6 +59,12 @@ func registerGRPC(server *grpc.Server) {
 	if queryGRPC != nil {
 		issuesv1.RegisterIssueQueryServiceServer(server, queryGRPC)
 	}
+	if feedAdminGRPC != nil {
+		feedsv1.RegisterFeedSyncAdminServiceServer(server, feedAdminGRPC)
+	}
+	if feedQueryGRPC != nil {
+		feedsv1.RegisterFeedQueryServiceServer(server, feedQueryGRPC)
+	}
 }
 
 func initSyncComponents() error {
@@ -65,30 +78,43 @@ func initSyncComponents() error {
 	}
 
 	var err error
+	var combined interface{}
 	switch driver {
 	case "mongo", "mongodb":
 		uri := storage.MongoURI
 		if uri == "" {
 			uri = storage.DSN
 		}
-		syncStore, err = dao.NewMongoSyncStore(uri, storage.MongoDB)
+		combined, err = dao.NewMongoSyncStore(uri, storage.MongoDB)
 	case "postgres", "postgresql":
 		dsn := storage.PostgresDSN
 		if dsn == "" {
 			dsn = storage.DSN
 		}
-		syncStore, err = dao.NewGormSyncStore(dsn)
+		combined, err = dao.NewGormSyncStore(dsn)
 	default:
 		return fmt.Errorf("unsupported storage driver %q", driver)
 	}
 	if err != nil {
 		return err
 	}
+	var ok bool
+	syncStore, ok = combined.(dao.SyncStore)
+	if !ok {
+		return fmt.Errorf("store %T does not implement issue sync store", combined)
+	}
+	feedStore, ok = combined.(dao.FeedStore)
+	if !ok {
+		return fmt.Errorf("store %T does not implement feed store", combined)
+	}
 
 	conf.Conf.Storage.Driver = driver
 	syncService = service.NewIssueSyncService(syncStore, conf.Conf.GitHub, conf.Conf.GitHubSync)
+	feedSyncService = service.NewFeedSyncService(feedStore, conf.Conf.FeedSync, nil)
 	adminGRPC = service.NewIssueSyncAdminGRPCServer(syncStore, syncService, conf.Conf)
 	queryGRPC = service.NewIssueQueryGRPCServer(syncStore)
+	feedAdminGRPC = service.NewFeedSyncAdminGRPCServer(feedStore, feedSyncService, conf.Conf)
+	feedQueryGRPC = service.NewFeedQueryGRPCServer(feedStore)
 	return nil
 }
 
@@ -127,6 +153,35 @@ func startSyncScheduler() error {
 			}
 		}
 	}()
+
+	if feedSyncService != nil {
+		feedCfg := feedSyncService.GetConfig()
+		if feedCfg.Enabled && feedSchedulerStopC == nil {
+			feedSchedulerStopC = make(chan struct{})
+			var feedSchedulerCtx context.Context
+			feedSchedulerCtx, feedSchedulerStop = context.WithCancel(context.Background())
+
+			interval := time.Duration(feedCfg.IntervalSeconds) * time.Second
+			if interval <= 0 {
+				interval = 5 * time.Minute
+			}
+
+			go func() {
+				ticker := time.NewTicker(interval)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-ticker.C:
+						_, _ = feedSyncService.RunSync(feedSchedulerCtx, "")
+					case <-feedSchedulerStopC:
+						return
+					case <-feedSchedulerCtx.Done():
+						return
+					}
+				}
+			}()
+		}
+	}
 	return nil
 }
 
@@ -139,12 +194,23 @@ func stopSyncScheduler() error {
 		close(schedulerStopC)
 		schedulerStopC = nil
 	}
+	if feedSchedulerStop != nil {
+		feedSchedulerStop()
+		feedSchedulerStop = nil
+	}
+	if feedSchedulerStopC != nil {
+		close(feedSchedulerStopC)
+		feedSchedulerStopC = nil
+	}
 	return nil
 }
 
 func closeSyncStore() error {
-	if syncStore != nil {
+	switch {
+	case syncStore != nil:
 		return syncStore.Close()
+	case feedStore != nil:
+		return feedStore.Close()
 	}
 	return nil
 }
