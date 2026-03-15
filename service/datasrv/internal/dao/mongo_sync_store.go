@@ -26,6 +26,7 @@ type mongoIssueDoc struct {
 	CreatedAt     time.Time  `bson:"created_at"`
 	UpdatedAt     time.Time  `bson:"updated_at"`
 	ClosedAt      *time.Time `bson:"closed_at,omitempty"`
+	AISummary     string     `bson:"ai_summary,omitempty"`
 	Raw           string     `bson:"raw,omitempty"`
 }
 
@@ -193,7 +194,12 @@ func (m *MongoSyncStore) UpsertIssues(ctx context.Context, repo string, issues [
 			"closed_at":       it.ClosedAt,
 			"raw":             it.Raw,
 		}
-		models = append(models, mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(bson.M{"$set": set}).SetUpsert(true))
+		models = append(models, mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(bson.M{
+			"$set": set,
+			"$setOnInsert": bson.M{
+				"ai_summary": it.AISummary,
+			},
+		}).SetUpsert(true))
 	}
 
 	if _, err := m.issuesCol.BulkWrite(ctx, models); err != nil {
@@ -253,6 +259,7 @@ func (m *MongoSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter)
 			CreatedAt:     doc.CreatedAt,
 			UpdatedAt:     doc.UpdatedAt,
 			ClosedAt:      doc.ClosedAt,
+			AISummary:     doc.AISummary,
 			Raw:           doc.Raw,
 		})
 	}
@@ -279,6 +286,35 @@ func (m *MongoSyncStore) GetRepoCheckpoint(ctx context.Context, repo string) (Ch
 		LastError:          doc.LastError,
 		UpdatedAt:          doc.UpdatedAt,
 	}, nil
+}
+
+func (m *MongoSyncStore) UpdateIssueAISummary(ctx context.Context, repo string, issueID int64, number int32, summary string) (SyncedIssue, error) {
+	filter := bson.M{"repo": repo}
+	switch {
+	case issueID > 0:
+		filter["issue_id"] = issueID
+	case number > 0:
+		filter["number"] = number
+	default:
+		return SyncedIssue{}, ErrIssueNotFound
+	}
+
+	result, err := m.issuesCol.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"ai_summary": summary}})
+	if err != nil {
+		return SyncedIssue{}, fmt.Errorf("update ai summary: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return SyncedIssue{}, ErrIssueNotFound
+	}
+
+	rows, err := m.ListIssues(ctx, SyncIssueFilter{Repo: repo, IssueID: issueID, Number: number, Limit: 1})
+	if err != nil {
+		return SyncedIssue{}, err
+	}
+	if len(rows) == 0 {
+		return SyncedIssue{}, ErrIssueNotFound
+	}
+	return rows[0], nil
 }
 
 func (m *MongoSyncStore) SaveRepoCheckpoint(ctx context.Context, checkpoint Checkpoint) error {

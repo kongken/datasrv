@@ -13,7 +13,7 @@ func TestIssueQueryGRPCServer_ListIssues(t *testing.T) {
 	store := newFakeSyncStore()
 	now := time.Now().UTC()
 	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
-		{Repo: "o/r", IssueID: 1, Number: 1, Title: "one", State: "open", Author: "alice", UpdatedAt: now},
+		{Repo: "o/r", IssueID: 1, Number: 1, Title: "one", State: "open", Author: "alice", UpdatedAt: now, AISummary: "one summary"},
 		{Repo: "o/r", IssueID: 2, Number: 2, Title: "two", State: "closed", Author: "bob", UpdatedAt: now},
 		{Repo: "o/r", IssueID: 3, Number: 3, Title: "three", State: "open", Author: "carol", UpdatedAt: now},
 	})
@@ -32,13 +32,16 @@ func TestIssueQueryGRPCServer_ListIssues(t *testing.T) {
 	if resp.Issues[0].State != "open" {
 		t.Fatalf("state = %q, want open", resp.Issues[0].State)
 	}
+	if resp.Issues[0].GetAiSummary() != "one summary" {
+		t.Fatalf("ai_summary = %q, want one summary", resp.Issues[0].GetAiSummary())
+	}
 }
 
 func TestIssueQueryGRPCServer_GetIssue(t *testing.T) {
 	store := newFakeSyncStore()
 	now := time.Now().UTC()
 	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
-		{Repo: "o/r", IssueID: 10, Number: 100, Title: "hello", State: "open", Author: "alice", UpdatedAt: now},
+		{Repo: "o/r", IssueID: 10, Number: 100, Title: "hello", State: "open", Author: "alice", UpdatedAt: now, AISummary: "short summary"},
 	})
 
 	srv := NewIssueQueryGRPCServer(store)
@@ -48,6 +51,9 @@ func TestIssueQueryGRPCServer_GetIssue(t *testing.T) {
 	}
 	if resp.GetIssue().GetTitle() != "hello" {
 		t.Fatalf("title = %q, want hello", resp.GetIssue().GetTitle())
+	}
+	if resp.GetIssue().GetAiSummary() != "short summary" {
+		t.Fatalf("ai_summary = %q, want short summary", resp.GetIssue().GetAiSummary())
 	}
 }
 

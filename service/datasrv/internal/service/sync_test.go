@@ -28,7 +28,24 @@ func newFakeSyncStore() *fakeSyncStore {
 func (f *fakeSyncStore) UpsertIssues(_ context.Context, repo string, issues []dao.SyncedIssue) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.issues[repo] = append(f.issues[repo], issues...)
+	existing := append([]dao.SyncedIssue(nil), f.issues[repo]...)
+	for _, incoming := range issues {
+		replaced := false
+		for i, current := range existing {
+			if current.IssueID == incoming.IssueID {
+				if incoming.AISummary == "" {
+					incoming.AISummary = current.AISummary
+				}
+				existing[i] = incoming
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			existing = append(existing, incoming)
+		}
+	}
+	f.issues[repo] = existing
 	return len(issues), nil
 }
 
@@ -80,6 +97,25 @@ func (f *fakeSyncStore) GetRepoCheckpoint(_ context.Context, repo string) (dao.C
 		return cp, nil
 	}
 	return dao.Checkpoint{Repo: repo}, nil
+}
+
+func (f *fakeSyncStore) UpdateIssueAISummary(_ context.Context, repo string, issueID int64, number int32, summary string) (dao.SyncedIssue, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	rows := f.issues[repo]
+	for i, row := range rows {
+		if issueID > 0 && row.IssueID != issueID {
+			continue
+		}
+		if issueID == 0 && number > 0 && row.Number != number {
+			continue
+		}
+		row.AISummary = summary
+		rows[i] = row
+		f.issues[repo] = rows
+		return row, nil
+	}
+	return dao.SyncedIssue{}, dao.ErrIssueNotFound
 }
 
 func (f *fakeSyncStore) SaveRepoCheckpoint(_ context.Context, checkpoint dao.Checkpoint) error {
@@ -244,6 +280,48 @@ func TestRunSyncRetryThenSuccess(t *testing.T) {
 	}
 	if len(client.calls) != 3 {
 		t.Fatalf("calls = %d, want 3", len(client.calls))
+	}
+}
+
+func TestRunSyncPreservesExistingAISummary(t *testing.T) {
+	store := newFakeSyncStore()
+	existingUpdated := time.Now().UTC().Round(time.Second)
+	_, _ = store.UpsertIssues(context.Background(), "owner/repo", []dao.SyncedIssue{{
+		Repo:      "owner/repo",
+		IssueID:   1,
+		Number:    1,
+		Title:     "existing",
+		State:     "open",
+		Author:    "alice",
+		UpdatedAt: existingUpdated,
+		AISummary: "keep me",
+	}})
+
+	client := &fakeGitHubIssueClient{
+		responses: []fakeGitHubResponse{
+			{issues: []*github.Issue{ghIssue(1, 1, existingUpdated.Add(time.Minute))}, nextPage: 0},
+		},
+	}
+	svc := NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{
+		Enabled:               true,
+		Repos:                 []string{"owner/repo"},
+		RequestTimeoutSeconds: 5,
+	})
+	svc.client = client
+
+	if _, err := svc.RunSync(context.Background(), ""); err != nil {
+		t.Fatalf("RunSync() error = %v", err)
+	}
+
+	rows, err := store.ListIssues(context.Background(), dao.SyncIssueFilter{Repo: "owner/repo", Number: 1, Limit: 1})
+	if err != nil {
+		t.Fatalf("ListIssues() error = %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("rows len = %d, want 1", len(rows))
+	}
+	if rows[0].AISummary != "keep me" {
+		t.Fatalf("ai_summary = %q, want keep me", rows[0].AISummary)
 	}
 }
 

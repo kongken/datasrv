@@ -117,6 +117,7 @@ func toProtoIssue(in dao.SyncedIssue) *issuesv1.Issue {
 		Comments:  in.Comments,
 		HtmlUrl:   in.HTMLURL,
 		Locked:    false,
+		AiSummary: in.AISummary,
 	}
 	if !in.CreatedAt.IsZero() {
 		out.CreatedAt = timestamppb.New(in.CreatedAt)

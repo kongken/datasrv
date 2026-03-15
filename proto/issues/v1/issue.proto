@@ -53,6 +53,9 @@ message Issue {
 
   // 是否被锁定
   bool locked = 15;
+
+  // AI 生成或外部写入的摘要
+  string ai_summary = 16;
 }
 
 // User 表示 GitHub 用户
@@ -212,11 +215,21 @@ message GetIssueResponse {
   Issue issue = 1;
 }
 
+message UpdateIssueAISummaryRequest {
+  string repo = 1;
+  oneof selector {
+    int64 issue_id = 2;
+    int32 number = 3;
+  }
+  string ai_summary = 4;
+}
+
 service IssueSyncAdminService {
   rpc SyncIssues(SyncIssuesRequest) returns (SyncIssuesResponse);
   rpc GetSyncConfig(google.protobuf.Empty) returns (GetSyncConfigResponse);
   rpc UpdateSyncConfig(UpdateSyncConfigRequest) returns (GetSyncConfigResponse);
   rpc GetSyncStatus(google.protobuf.Empty) returns (GetSyncStatusResponse);
+  rpc UpdateIssueAISummary(UpdateIssueAISummaryRequest) returns (GetIssueResponse);
 }
 
 service IssueQueryService {

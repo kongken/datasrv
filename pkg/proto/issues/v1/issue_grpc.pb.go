@@ -20,10 +20,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	IssueSyncAdminService_SyncIssues_FullMethodName       = "/issues.v1.IssueSyncAdminService/SyncIssues"
-	IssueSyncAdminService_GetSyncConfig_FullMethodName    = "/issues.v1.IssueSyncAdminService/GetSyncConfig"
-	IssueSyncAdminService_UpdateSyncConfig_FullMethodName = "/issues.v1.IssueSyncAdminService/UpdateSyncConfig"
-	IssueSyncAdminService_GetSyncStatus_FullMethodName    = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
+	IssueSyncAdminService_SyncIssues_FullMethodName           = "/issues.v1.IssueSyncAdminService/SyncIssues"
+	IssueSyncAdminService_GetSyncConfig_FullMethodName        = "/issues.v1.IssueSyncAdminService/GetSyncConfig"
+	IssueSyncAdminService_UpdateSyncConfig_FullMethodName     = "/issues.v1.IssueSyncAdminService/UpdateSyncConfig"
+	IssueSyncAdminService_GetSyncStatus_FullMethodName        = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
+	IssueSyncAdminService_UpdateIssueAISummary_FullMethodName = "/issues.v1.IssueSyncAdminService/UpdateIssueAISummary"
 )
 
 // IssueSyncAdminServiceClient is the client API for IssueSyncAdminService service.
@@ -34,6 +35,7 @@ type IssueSyncAdminServiceClient interface {
 	GetSyncConfig(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetSyncConfigResponse, error)
 	UpdateSyncConfig(ctx context.Context, in *UpdateSyncConfigRequest, opts ...grpc.CallOption) (*GetSyncConfigResponse, error)
 	GetSyncStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetSyncStatusResponse, error)
+	UpdateIssueAISummary(ctx context.Context, in *UpdateIssueAISummaryRequest, opts ...grpc.CallOption) (*GetIssueResponse, error)
 }
 
 type issueSyncAdminServiceClient struct {
@@ -84,6 +86,16 @@ func (c *issueSyncAdminServiceClient) GetSyncStatus(ctx context.Context, in *emp
 	return out, nil
 }
 
+func (c *issueSyncAdminServiceClient) UpdateIssueAISummary(ctx context.Context, in *UpdateIssueAISummaryRequest, opts ...grpc.CallOption) (*GetIssueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetIssueResponse)
+	err := c.cc.Invoke(ctx, IssueSyncAdminService_UpdateIssueAISummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IssueSyncAdminServiceServer is the server API for IssueSyncAdminService service.
 // All implementations must embed UnimplementedIssueSyncAdminServiceServer
 // for forward compatibility.
@@ -92,6 +104,7 @@ type IssueSyncAdminServiceServer interface {
 	GetSyncConfig(context.Context, *emptypb.Empty) (*GetSyncConfigResponse, error)
 	UpdateSyncConfig(context.Context, *UpdateSyncConfigRequest) (*GetSyncConfigResponse, error)
 	GetSyncStatus(context.Context, *emptypb.Empty) (*GetSyncStatusResponse, error)
+	UpdateIssueAISummary(context.Context, *UpdateIssueAISummaryRequest) (*GetIssueResponse, error)
 	mustEmbedUnimplementedIssueSyncAdminServiceServer()
 }
 
@@ -113,6 +126,9 @@ func (UnimplementedIssueSyncAdminServiceServer) UpdateSyncConfig(context.Context
 }
 func (UnimplementedIssueSyncAdminServiceServer) GetSyncStatus(context.Context, *emptypb.Empty) (*GetSyncStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSyncStatus not implemented")
+}
+func (UnimplementedIssueSyncAdminServiceServer) UpdateIssueAISummary(context.Context, *UpdateIssueAISummaryRequest) (*GetIssueResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateIssueAISummary not implemented")
 }
 func (UnimplementedIssueSyncAdminServiceServer) mustEmbedUnimplementedIssueSyncAdminServiceServer() {}
 func (UnimplementedIssueSyncAdminServiceServer) testEmbeddedByValue()                               {}
@@ -207,6 +223,24 @@ func _IssueSyncAdminService_GetSyncStatus_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IssueSyncAdminService_UpdateIssueAISummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateIssueAISummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueSyncAdminServiceServer).UpdateIssueAISummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueSyncAdminService_UpdateIssueAISummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueSyncAdminServiceServer).UpdateIssueAISummary(ctx, req.(*UpdateIssueAISummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IssueSyncAdminService_ServiceDesc is the grpc.ServiceDesc for IssueSyncAdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -229,6 +263,10 @@ var IssueSyncAdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSyncStatus",
 			Handler:    _IssueSyncAdminService_GetSyncStatus_Handler,
+		},
+		{
+			MethodName: "UpdateIssueAISummary",
+			Handler:    _IssueSyncAdminService_UpdateIssueAISummary_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

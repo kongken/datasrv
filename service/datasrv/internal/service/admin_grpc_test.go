@@ -95,6 +95,27 @@ func TestIssueSyncAdminGRPCServer_GetSyncStatusError(t *testing.T) {
 	}
 }
 
+func TestIssueSyncAdminGRPCServer_UpdateIssueAISummaryByNumber(t *testing.T) {
+	store := newFakeSyncStore()
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
+		{Repo: "o/r", IssueID: 10, Number: 100, Title: "hello", State: "open", Author: "alice", UpdatedAt: now},
+	})
+
+	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}), &conf.Config{})
+	resp, err := srv.UpdateIssueAISummary(context.Background(), &issuesv1.UpdateIssueAISummaryRequest{
+		Repo:      "o/r",
+		Selector:  &issuesv1.UpdateIssueAISummaryRequest_Number{Number: 100},
+		AiSummary: "summary text",
+	})
+	if err != nil {
+		t.Fatalf("UpdateIssueAISummary() error = %v", err)
+	}
+	if resp.GetIssue().GetAiSummary() != "summary text" {
+		t.Fatalf("ai_summary = %q, want summary text", resp.GetIssue().GetAiSummary())
+	}
+}
+
 type errorSyncStore struct{}
 
 func (e *errorSyncStore) UpsertIssues(context.Context, string, []dao.SyncedIssue) (int, error) {
@@ -102,6 +123,9 @@ func (e *errorSyncStore) UpsertIssues(context.Context, string, []dao.SyncedIssue
 }
 func (e *errorSyncStore) ListIssues(context.Context, dao.SyncIssueFilter) ([]dao.SyncedIssue, error) {
 	return nil, nil
+}
+func (e *errorSyncStore) UpdateIssueAISummary(context.Context, string, int64, int32, string) (dao.SyncedIssue, error) {
+	return dao.SyncedIssue{}, context.DeadlineExceeded
 }
 func (e *errorSyncStore) GetRepoCheckpoint(context.Context, string) (dao.Checkpoint, error) {
 	return dao.Checkpoint{}, nil

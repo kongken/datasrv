@@ -48,6 +48,9 @@ const (
 	// IssueSyncAdminServiceGetSyncStatusProcedure is the fully-qualified name of the
 	// IssueSyncAdminService's GetSyncStatus RPC.
 	IssueSyncAdminServiceGetSyncStatusProcedure = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
+	// IssueSyncAdminServiceUpdateIssueAISummaryProcedure is the fully-qualified name of the
+	// IssueSyncAdminService's UpdateIssueAISummary RPC.
+	IssueSyncAdminServiceUpdateIssueAISummaryProcedure = "/issues.v1.IssueSyncAdminService/UpdateIssueAISummary"
 	// IssueQueryServiceListIssuesProcedure is the fully-qualified name of the IssueQueryService's
 	// ListIssues RPC.
 	IssueQueryServiceListIssuesProcedure = "/issues.v1.IssueQueryService/ListIssues"
@@ -62,6 +65,7 @@ type IssueSyncAdminServiceClient interface {
 	GetSyncConfig(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncConfigResponse], error)
 	UpdateSyncConfig(context.Context, *connect.Request[v1.UpdateSyncConfigRequest]) (*connect.Response[v1.GetSyncConfigResponse], error)
 	GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error)
+	UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error)
 }
 
 // NewIssueSyncAdminServiceClient constructs a client for the issues.v1.IssueSyncAdminService
@@ -99,15 +103,22 @@ func NewIssueSyncAdminServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(issueSyncAdminServiceMethods.ByName("GetSyncStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		updateIssueAISummary: connect.NewClient[v1.UpdateIssueAISummaryRequest, v1.GetIssueResponse](
+			httpClient,
+			baseURL+IssueSyncAdminServiceUpdateIssueAISummaryProcedure,
+			connect.WithSchema(issueSyncAdminServiceMethods.ByName("UpdateIssueAISummary")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // issueSyncAdminServiceClient implements IssueSyncAdminServiceClient.
 type issueSyncAdminServiceClient struct {
-	syncIssues       *connect.Client[v1.SyncIssuesRequest, v1.SyncIssuesResponse]
-	getSyncConfig    *connect.Client[emptypb.Empty, v1.GetSyncConfigResponse]
-	updateSyncConfig *connect.Client[v1.UpdateSyncConfigRequest, v1.GetSyncConfigResponse]
-	getSyncStatus    *connect.Client[emptypb.Empty, v1.GetSyncStatusResponse]
+	syncIssues           *connect.Client[v1.SyncIssuesRequest, v1.SyncIssuesResponse]
+	getSyncConfig        *connect.Client[emptypb.Empty, v1.GetSyncConfigResponse]
+	updateSyncConfig     *connect.Client[v1.UpdateSyncConfigRequest, v1.GetSyncConfigResponse]
+	getSyncStatus        *connect.Client[emptypb.Empty, v1.GetSyncStatusResponse]
+	updateIssueAISummary *connect.Client[v1.UpdateIssueAISummaryRequest, v1.GetIssueResponse]
 }
 
 // SyncIssues calls issues.v1.IssueSyncAdminService.SyncIssues.
@@ -130,12 +141,18 @@ func (c *issueSyncAdminServiceClient) GetSyncStatus(ctx context.Context, req *co
 	return c.getSyncStatus.CallUnary(ctx, req)
 }
 
+// UpdateIssueAISummary calls issues.v1.IssueSyncAdminService.UpdateIssueAISummary.
+func (c *issueSyncAdminServiceClient) UpdateIssueAISummary(ctx context.Context, req *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error) {
+	return c.updateIssueAISummary.CallUnary(ctx, req)
+}
+
 // IssueSyncAdminServiceHandler is an implementation of the issues.v1.IssueSyncAdminService service.
 type IssueSyncAdminServiceHandler interface {
 	SyncIssues(context.Context, *connect.Request[v1.SyncIssuesRequest]) (*connect.Response[v1.SyncIssuesResponse], error)
 	GetSyncConfig(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncConfigResponse], error)
 	UpdateSyncConfig(context.Context, *connect.Request[v1.UpdateSyncConfigRequest]) (*connect.Response[v1.GetSyncConfigResponse], error)
 	GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error)
+	UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error)
 }
 
 // NewIssueSyncAdminServiceHandler builds an HTTP handler from the service implementation. It
@@ -169,6 +186,12 @@ func NewIssueSyncAdminServiceHandler(svc IssueSyncAdminServiceHandler, opts ...c
 		connect.WithSchema(issueSyncAdminServiceMethods.ByName("GetSyncStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	issueSyncAdminServiceUpdateIssueAISummaryHandler := connect.NewUnaryHandler(
+		IssueSyncAdminServiceUpdateIssueAISummaryProcedure,
+		svc.UpdateIssueAISummary,
+		connect.WithSchema(issueSyncAdminServiceMethods.ByName("UpdateIssueAISummary")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/issues.v1.IssueSyncAdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IssueSyncAdminServiceSyncIssuesProcedure:
@@ -179,6 +202,8 @@ func NewIssueSyncAdminServiceHandler(svc IssueSyncAdminServiceHandler, opts ...c
 			issueSyncAdminServiceUpdateSyncConfigHandler.ServeHTTP(w, r)
 		case IssueSyncAdminServiceGetSyncStatusProcedure:
 			issueSyncAdminServiceGetSyncStatusHandler.ServeHTTP(w, r)
+		case IssueSyncAdminServiceUpdateIssueAISummaryProcedure:
+			issueSyncAdminServiceUpdateIssueAISummaryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -202,6 +227,10 @@ func (UnimplementedIssueSyncAdminServiceHandler) UpdateSyncConfig(context.Contex
 
 func (UnimplementedIssueSyncAdminServiceHandler) GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.GetSyncStatus is not implemented"))
+}
+
+func (UnimplementedIssueSyncAdminServiceHandler) UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.UpdateIssueAISummary is not implemented"))
 }
 
 // IssueQueryServiceClient is a client for the issues.v1.IssueQueryService service.

@@ -28,6 +28,7 @@ type gormIssue struct {
 	CreatedAt     time.Time `gorm:"index"`
 	UpdatedAt     time.Time `gorm:"index"`
 	ClosedAt      *time.Time
+	AISummary     string `gorm:"type:text"`
 	Raw           string `gorm:"type:text"`
 }
 
@@ -148,6 +149,7 @@ func (g *GormSyncStore) UpsertIssues(ctx context.Context, repo string, issues []
 			CreatedAt:     it.CreatedAt,
 			UpdatedAt:     it.UpdatedAt,
 			ClosedAt:      it.ClosedAt,
+			AISummary:     it.AISummary,
 			Raw:           it.Raw,
 		})
 	}
@@ -216,10 +218,40 @@ func (g *GormSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter) 
 			CreatedAt:     row.CreatedAt,
 			UpdatedAt:     row.UpdatedAt,
 			ClosedAt:      row.ClosedAt,
+			AISummary:     row.AISummary,
 			Raw:           row.Raw,
 		})
 	}
 	return out, nil
+}
+
+func (g *GormSyncStore) UpdateIssueAISummary(ctx context.Context, repo string, issueID int64, number int32, summary string) (SyncedIssue, error) {
+	query := g.db.WithContext(ctx).Model(&gormIssue{}).Where("repo = ?", repo)
+	switch {
+	case issueID > 0:
+		query = query.Where("issue_id = ?", issueID)
+	case number > 0:
+		query = query.Where("number = ?", number)
+	default:
+		return SyncedIssue{}, ErrIssueNotFound
+	}
+
+	result := query.Update("ai_summary", summary)
+	if result.Error != nil {
+		return SyncedIssue{}, fmt.Errorf("gorm update ai_summary: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return SyncedIssue{}, ErrIssueNotFound
+	}
+
+	rows, err := g.ListIssues(ctx, SyncIssueFilter{Repo: repo, IssueID: issueID, Number: number, Limit: 1})
+	if err != nil {
+		return SyncedIssue{}, err
+	}
+	if len(rows) == 0 {
+		return SyncedIssue{}, ErrIssueNotFound
+	}
+	return rows[0], nil
 }
 
 func (g *GormSyncStore) GetRepoCheckpoint(ctx context.Context, repo string) (Checkpoint, error) {

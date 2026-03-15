@@ -2,8 +2,11 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+var ErrIssueNotFound = errors.New("issue not found")
 
 // SyncedIssue is the normalized persistence model used by sync workers.
 type SyncedIssue struct {
@@ -22,6 +25,7 @@ type SyncedIssue struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	ClosedAt      *time.Time
+	AISummary     string
 	Raw           string
 }
 
@@ -49,6 +53,7 @@ type SyncIssueFilter struct {
 type SyncStore interface {
 	UpsertIssues(ctx context.Context, repo string, issues []SyncedIssue) (int, error)
 	ListIssues(ctx context.Context, filter SyncIssueFilter) ([]SyncedIssue, error)
+	UpdateIssueAISummary(ctx context.Context, repo string, issueID int64, number int32, summary string) (SyncedIssue, error)
 	GetRepoCheckpoint(ctx context.Context, repo string) (Checkpoint, error)
 	SaveRepoCheckpoint(ctx context.Context, checkpoint Checkpoint) error
 	ListCheckpoints(ctx context.Context) ([]Checkpoint, error)

@@ -7,6 +7,8 @@ import (
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
 	"github.com/kongken/datasrv/service/datasrv/internal/conf"
 	"github.com/kongken/datasrv/service/datasrv/internal/dao"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -134,4 +136,30 @@ func (s *IssueSyncAdminGRPCServer) GetSyncStatus(ctx context.Context, _ *emptypb
 		resp.LastFinishedAt = timestamppb.New(lastRun.FinishedAt)
 	}
 	return resp, nil
+}
+
+func (s *IssueSyncAdminGRPCServer) UpdateIssueAISummary(ctx context.Context, req *issuesv1.UpdateIssueAISummaryRequest) (*issuesv1.GetIssueResponse, error) {
+	if req.GetRepo() == "" {
+		return nil, status.Error(codes.InvalidArgument, "repo is required")
+	}
+
+	var issueID int64
+	var number int32
+	switch {
+	case req.GetIssueId() > 0:
+		issueID = req.GetIssueId()
+	case req.GetNumber() > 0:
+		number = req.GetNumber()
+	default:
+		return nil, status.Error(codes.InvalidArgument, "either issue_id or number is required")
+	}
+
+	updated, err := s.store.UpdateIssueAISummary(ctx, req.GetRepo(), issueID, number, req.GetAiSummary())
+	if err != nil {
+		if err == dao.ErrIssueNotFound {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Errorf(codes.Internal, "update issue ai summary: %v", err)
+	}
+	return &issuesv1.GetIssueResponse{Issue: toProtoIssue(updated)}, nil
 }
