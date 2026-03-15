@@ -37,9 +37,12 @@ type Checkpoint struct {
 
 // SyncIssueFilter defines list parameters for admin read APIs.
 type SyncIssueFilter struct {
-	Repo   string
-	Offset int
-	Limit  int
+	Repo    string
+	State   string
+	IssueID int64
+	Number  int32
+	Offset  int
+	Limit   int
 }
 
 // SyncStore is the abstraction over persistence backends used by sync logic.

@@ -134,6 +134,15 @@ func (m *MongoSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter)
 	if filter.Repo != "" {
 		q["repo"] = filter.Repo
 	}
+	if filter.State != "" && filter.State != "all" {
+		q["state"] = filter.State
+	}
+	if filter.IssueID > 0 {
+		q["issue_id"] = filter.IssueID
+	}
+	if filter.Number > 0 {
+		q["number"] = filter.Number
+	}
 
 	opts := options.Find().SetSort(bson.D{{Key: "updated_at", Value: -1}})
 	if filter.Offset > 0 {

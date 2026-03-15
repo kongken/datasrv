@@ -234,3 +234,143 @@ var IssueSyncAdminService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "issues/v1/issue.proto",
 }
+
+const (
+	IssueQueryService_ListIssues_FullMethodName = "/issues.v1.IssueQueryService/ListIssues"
+	IssueQueryService_GetIssue_FullMethodName   = "/issues.v1.IssueQueryService/GetIssue"
+)
+
+// IssueQueryServiceClient is the client API for IssueQueryService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type IssueQueryServiceClient interface {
+	ListIssues(ctx context.Context, in *ListIssuesRequest, opts ...grpc.CallOption) (*ListIssuesResponse, error)
+	GetIssue(ctx context.Context, in *GetIssueRequest, opts ...grpc.CallOption) (*GetIssueResponse, error)
+}
+
+type issueQueryServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewIssueQueryServiceClient(cc grpc.ClientConnInterface) IssueQueryServiceClient {
+	return &issueQueryServiceClient{cc}
+}
+
+func (c *issueQueryServiceClient) ListIssues(ctx context.Context, in *ListIssuesRequest, opts ...grpc.CallOption) (*ListIssuesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListIssuesResponse)
+	err := c.cc.Invoke(ctx, IssueQueryService_ListIssues_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *issueQueryServiceClient) GetIssue(ctx context.Context, in *GetIssueRequest, opts ...grpc.CallOption) (*GetIssueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetIssueResponse)
+	err := c.cc.Invoke(ctx, IssueQueryService_GetIssue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// IssueQueryServiceServer is the server API for IssueQueryService service.
+// All implementations must embed UnimplementedIssueQueryServiceServer
+// for forward compatibility.
+type IssueQueryServiceServer interface {
+	ListIssues(context.Context, *ListIssuesRequest) (*ListIssuesResponse, error)
+	GetIssue(context.Context, *GetIssueRequest) (*GetIssueResponse, error)
+	mustEmbedUnimplementedIssueQueryServiceServer()
+}
+
+// UnimplementedIssueQueryServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedIssueQueryServiceServer struct{}
+
+func (UnimplementedIssueQueryServiceServer) ListIssues(context.Context, *ListIssuesRequest) (*ListIssuesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListIssues not implemented")
+}
+func (UnimplementedIssueQueryServiceServer) GetIssue(context.Context, *GetIssueRequest) (*GetIssueResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetIssue not implemented")
+}
+func (UnimplementedIssueQueryServiceServer) mustEmbedUnimplementedIssueQueryServiceServer() {}
+func (UnimplementedIssueQueryServiceServer) testEmbeddedByValue()                           {}
+
+// UnsafeIssueQueryServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to IssueQueryServiceServer will
+// result in compilation errors.
+type UnsafeIssueQueryServiceServer interface {
+	mustEmbedUnimplementedIssueQueryServiceServer()
+}
+
+func RegisterIssueQueryServiceServer(s grpc.ServiceRegistrar, srv IssueQueryServiceServer) {
+	// If the following call panics, it indicates UnimplementedIssueQueryServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&IssueQueryService_ServiceDesc, srv)
+}
+
+func _IssueQueryService_ListIssues_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListIssuesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueQueryServiceServer).ListIssues(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueQueryService_ListIssues_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueQueryServiceServer).ListIssues(ctx, req.(*ListIssuesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IssueQueryService_GetIssue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetIssueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueQueryServiceServer).GetIssue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueQueryService_GetIssue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueQueryServiceServer).GetIssue(ctx, req.(*GetIssueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// IssueQueryService_ServiceDesc is the grpc.ServiceDesc for IssueQueryService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var IssueQueryService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "issues.v1.IssueQueryService",
+	HandlerType: (*IssueQueryServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListIssues",
+			Handler:    _IssueQueryService_ListIssues_Handler,
+		},
+		{
+			MethodName: "GetIssue",
+			Handler:    _IssueQueryService_GetIssue_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "issues/v1/issue.proto",
+}

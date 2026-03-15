@@ -120,6 +120,15 @@ func (g *GormSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter) 
 	if filter.Repo != "" {
 		query = query.Where("repo = ?", filter.Repo)
 	}
+	if filter.State != "" && filter.State != "all" {
+		query = query.Where("state = ?", filter.State)
+	}
+	if filter.IssueID > 0 {
+		query = query.Where("issue_id = ?", filter.IssueID)
+	}
+	if filter.Number > 0 {
+		query = query.Where("number = ?", filter.Number)
+	}
 	if filter.Offset > 0 {
 		query = query.Offset(filter.Offset)
 	}

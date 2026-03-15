@@ -35,14 +35,42 @@ func (f *fakeSyncStore) UpsertIssues(_ context.Context, repo string, issues []da
 func (f *fakeSyncStore) ListIssues(_ context.Context, filter dao.SyncIssueFilter) ([]dao.SyncedIssue, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	var source []dao.SyncedIssue
 	if filter.Repo == "" {
-		var out []dao.SyncedIssue
 		for _, items := range f.issues {
-			out = append(out, items...)
+			source = append(source, items...)
 		}
-		return out, nil
+	} else {
+		source = append(source, f.issues[filter.Repo]...)
 	}
-	return append([]dao.SyncedIssue(nil), f.issues[filter.Repo]...), nil
+
+	filtered := make([]dao.SyncedIssue, 0, len(source))
+	for _, it := range source {
+		if filter.State != "" && filter.State != "all" && it.State != filter.State {
+			continue
+		}
+		if filter.IssueID > 0 && it.IssueID != filter.IssueID {
+			continue
+		}
+		if filter.Number > 0 && it.Number != filter.Number {
+			continue
+		}
+		filtered = append(filtered, it)
+	}
+
+	start := filter.Offset
+	if start < 0 {
+		start = 0
+	}
+	if start > len(filtered) {
+		return []dao.SyncedIssue{}, nil
+	}
+	end := len(filtered)
+	if filter.Limit > 0 && start+filter.Limit < end {
+		end = start + filter.Limit
+	}
+	return append([]dao.SyncedIssue(nil), filtered[start:end]...), nil
 }
 
 func (f *fakeSyncStore) GetRepoCheckpoint(_ context.Context, repo string) (dao.Checkpoint, error) {

@@ -24,6 +24,8 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// IssueSyncAdminServiceName is the fully-qualified name of the IssueSyncAdminService service.
 	IssueSyncAdminServiceName = "issues.v1.IssueSyncAdminService"
+	// IssueQueryServiceName is the fully-qualified name of the IssueQueryService service.
+	IssueQueryServiceName = "issues.v1.IssueQueryService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -46,6 +48,12 @@ const (
 	// IssueSyncAdminServiceGetSyncStatusProcedure is the fully-qualified name of the
 	// IssueSyncAdminService's GetSyncStatus RPC.
 	IssueSyncAdminServiceGetSyncStatusProcedure = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
+	// IssueQueryServiceListIssuesProcedure is the fully-qualified name of the IssueQueryService's
+	// ListIssues RPC.
+	IssueQueryServiceListIssuesProcedure = "/issues.v1.IssueQueryService/ListIssues"
+	// IssueQueryServiceGetIssueProcedure is the fully-qualified name of the IssueQueryService's
+	// GetIssue RPC.
+	IssueQueryServiceGetIssueProcedure = "/issues.v1.IssueQueryService/GetIssue"
 )
 
 // IssueSyncAdminServiceClient is a client for the issues.v1.IssueSyncAdminService service.
@@ -194,4 +202,100 @@ func (UnimplementedIssueSyncAdminServiceHandler) UpdateSyncConfig(context.Contex
 
 func (UnimplementedIssueSyncAdminServiceHandler) GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.GetSyncStatus is not implemented"))
+}
+
+// IssueQueryServiceClient is a client for the issues.v1.IssueQueryService service.
+type IssueQueryServiceClient interface {
+	ListIssues(context.Context, *connect.Request[v1.ListIssuesRequest]) (*connect.Response[v1.ListIssuesResponse], error)
+	GetIssue(context.Context, *connect.Request[v1.GetIssueRequest]) (*connect.Response[v1.GetIssueResponse], error)
+}
+
+// NewIssueQueryServiceClient constructs a client for the issues.v1.IssueQueryService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewIssueQueryServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) IssueQueryServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	issueQueryServiceMethods := v1.File_issues_v1_issue_proto.Services().ByName("IssueQueryService").Methods()
+	return &issueQueryServiceClient{
+		listIssues: connect.NewClient[v1.ListIssuesRequest, v1.ListIssuesResponse](
+			httpClient,
+			baseURL+IssueQueryServiceListIssuesProcedure,
+			connect.WithSchema(issueQueryServiceMethods.ByName("ListIssues")),
+			connect.WithClientOptions(opts...),
+		),
+		getIssue: connect.NewClient[v1.GetIssueRequest, v1.GetIssueResponse](
+			httpClient,
+			baseURL+IssueQueryServiceGetIssueProcedure,
+			connect.WithSchema(issueQueryServiceMethods.ByName("GetIssue")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// issueQueryServiceClient implements IssueQueryServiceClient.
+type issueQueryServiceClient struct {
+	listIssues *connect.Client[v1.ListIssuesRequest, v1.ListIssuesResponse]
+	getIssue   *connect.Client[v1.GetIssueRequest, v1.GetIssueResponse]
+}
+
+// ListIssues calls issues.v1.IssueQueryService.ListIssues.
+func (c *issueQueryServiceClient) ListIssues(ctx context.Context, req *connect.Request[v1.ListIssuesRequest]) (*connect.Response[v1.ListIssuesResponse], error) {
+	return c.listIssues.CallUnary(ctx, req)
+}
+
+// GetIssue calls issues.v1.IssueQueryService.GetIssue.
+func (c *issueQueryServiceClient) GetIssue(ctx context.Context, req *connect.Request[v1.GetIssueRequest]) (*connect.Response[v1.GetIssueResponse], error) {
+	return c.getIssue.CallUnary(ctx, req)
+}
+
+// IssueQueryServiceHandler is an implementation of the issues.v1.IssueQueryService service.
+type IssueQueryServiceHandler interface {
+	ListIssues(context.Context, *connect.Request[v1.ListIssuesRequest]) (*connect.Response[v1.ListIssuesResponse], error)
+	GetIssue(context.Context, *connect.Request[v1.GetIssueRequest]) (*connect.Response[v1.GetIssueResponse], error)
+}
+
+// NewIssueQueryServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewIssueQueryServiceHandler(svc IssueQueryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	issueQueryServiceMethods := v1.File_issues_v1_issue_proto.Services().ByName("IssueQueryService").Methods()
+	issueQueryServiceListIssuesHandler := connect.NewUnaryHandler(
+		IssueQueryServiceListIssuesProcedure,
+		svc.ListIssues,
+		connect.WithSchema(issueQueryServiceMethods.ByName("ListIssues")),
+		connect.WithHandlerOptions(opts...),
+	)
+	issueQueryServiceGetIssueHandler := connect.NewUnaryHandler(
+		IssueQueryServiceGetIssueProcedure,
+		svc.GetIssue,
+		connect.WithSchema(issueQueryServiceMethods.ByName("GetIssue")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/issues.v1.IssueQueryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case IssueQueryServiceListIssuesProcedure:
+			issueQueryServiceListIssuesHandler.ServeHTTP(w, r)
+		case IssueQueryServiceGetIssueProcedure:
+			issueQueryServiceGetIssueHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedIssueQueryServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedIssueQueryServiceHandler struct{}
+
+func (UnimplementedIssueQueryServiceHandler) ListIssues(context.Context, *connect.Request[v1.ListIssuesRequest]) (*connect.Response[v1.ListIssuesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueQueryService.ListIssues is not implemented"))
+}
+
+func (UnimplementedIssueQueryServiceHandler) GetIssue(context.Context, *connect.Request[v1.GetIssueRequest]) (*connect.Response[v1.GetIssueResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueQueryService.GetIssue is not implemented"))
 }

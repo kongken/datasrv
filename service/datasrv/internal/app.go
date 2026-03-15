@@ -22,6 +22,7 @@ var (
 	syncStore      dao.SyncStore
 	syncService    *service.IssueSyncService
 	adminGRPC      *service.IssueSyncAdminGRPCServer
+	queryGRPC      *service.IssueQueryGRPCServer
 	schedulerStopC chan struct{}
 	schedulerStop  context.CancelFunc
 )
@@ -47,6 +48,9 @@ func NewApp() *app.App {
 func registerGRPC(server *grpc.Server) {
 	if adminGRPC != nil {
 		issuesv1.RegisterIssueSyncAdminServiceServer(server, adminGRPC)
+	}
+	if queryGRPC != nil {
+		issuesv1.RegisterIssueQueryServiceServer(server, queryGRPC)
 	}
 }
 
@@ -84,6 +88,7 @@ func initSyncComponents() error {
 	conf.Conf.Storage.Driver = driver
 	syncService = service.NewIssueSyncService(syncStore, conf.Conf.GitHub, conf.Conf.GitHubSync)
 	adminGRPC = service.NewIssueSyncAdminGRPCServer(syncStore, syncService, conf.Conf)
+	queryGRPC = service.NewIssueQueryGRPCServer(syncStore)
 	return nil
 }
 
