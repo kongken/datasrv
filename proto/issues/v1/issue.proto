@@ -233,6 +233,24 @@ message AdminLoginRequest {
 message AdminLoginResponse {
   bool success = 1;
   string message = 2;
+  string token = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message AdminLogoutRequest {
+  string token = 1;
+}
+
+message AdminLogoutResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message AdminWhoAmIRequest {}
+
+message AdminWhoAmIResponse {
+  string user = 1;
+  google.protobuf.Timestamp expires_at = 2;
 }
 
 service IssueSyncAdminService {
@@ -284,6 +302,17 @@ service AdminAuthService {
     option (google.api.http) = {
       post: "/api/v1/admin/auth:login"
       body: "*"
+    };
+  }
+  rpc AdminLogout(AdminLogoutRequest) returns (AdminLogoutResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/auth:logout"
+      body: "*"
+    };
+  }
+  rpc AdminWhoAmI(AdminWhoAmIRequest) returns (AdminWhoAmIResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/auth:me"
     };
   }
 }

@@ -2714,6 +2714,37 @@ func (m *AdminLoginResponse) validate(all bool) error {
 
 	// no validation rules for Message
 
+	// no validation rules for Token
+
+	if all {
+		switch v := interface{}(m.GetExpiresAt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, AdminLoginResponseValidationError{
+					field:  "ExpiresAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, AdminLoginResponseValidationError{
+					field:  "ExpiresAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetExpiresAt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return AdminLoginResponseValidationError{
+				field:  "ExpiresAt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
 	if len(errors) > 0 {
 		return AdminLoginResponseMultiError(errors)
 	}
@@ -2793,3 +2824,448 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = AdminLoginResponseValidationError{}
+
+// Validate checks the field values on AdminLogoutRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *AdminLogoutRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AdminLogoutRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// AdminLogoutRequestMultiError, or nil if none found.
+func (m *AdminLogoutRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AdminLogoutRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Token
+
+	if len(errors) > 0 {
+		return AdminLogoutRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// AdminLogoutRequestMultiError is an error wrapping multiple validation errors
+// returned by AdminLogoutRequest.ValidateAll() if the designated constraints
+// aren't met.
+type AdminLogoutRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AdminLogoutRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AdminLogoutRequestMultiError) AllErrors() []error { return m }
+
+// AdminLogoutRequestValidationError is the validation error returned by
+// AdminLogoutRequest.Validate if the designated constraints aren't met.
+type AdminLogoutRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AdminLogoutRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AdminLogoutRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AdminLogoutRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AdminLogoutRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AdminLogoutRequestValidationError) ErrorName() string {
+	return "AdminLogoutRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AdminLogoutRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAdminLogoutRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AdminLogoutRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AdminLogoutRequestValidationError{}
+
+// Validate checks the field values on AdminLogoutResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *AdminLogoutResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AdminLogoutResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// AdminLogoutResponseMultiError, or nil if none found.
+func (m *AdminLogoutResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AdminLogoutResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Success
+
+	// no validation rules for Message
+
+	if len(errors) > 0 {
+		return AdminLogoutResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// AdminLogoutResponseMultiError is an error wrapping multiple validation
+// errors returned by AdminLogoutResponse.ValidateAll() if the designated
+// constraints aren't met.
+type AdminLogoutResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AdminLogoutResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AdminLogoutResponseMultiError) AllErrors() []error { return m }
+
+// AdminLogoutResponseValidationError is the validation error returned by
+// AdminLogoutResponse.Validate if the designated constraints aren't met.
+type AdminLogoutResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AdminLogoutResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AdminLogoutResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AdminLogoutResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AdminLogoutResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AdminLogoutResponseValidationError) ErrorName() string {
+	return "AdminLogoutResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AdminLogoutResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAdminLogoutResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AdminLogoutResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AdminLogoutResponseValidationError{}
+
+// Validate checks the field values on AdminWhoAmIRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *AdminWhoAmIRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AdminWhoAmIRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// AdminWhoAmIRequestMultiError, or nil if none found.
+func (m *AdminWhoAmIRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AdminWhoAmIRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return AdminWhoAmIRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// AdminWhoAmIRequestMultiError is an error wrapping multiple validation errors
+// returned by AdminWhoAmIRequest.ValidateAll() if the designated constraints
+// aren't met.
+type AdminWhoAmIRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AdminWhoAmIRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AdminWhoAmIRequestMultiError) AllErrors() []error { return m }
+
+// AdminWhoAmIRequestValidationError is the validation error returned by
+// AdminWhoAmIRequest.Validate if the designated constraints aren't met.
+type AdminWhoAmIRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AdminWhoAmIRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AdminWhoAmIRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AdminWhoAmIRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AdminWhoAmIRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AdminWhoAmIRequestValidationError) ErrorName() string {
+	return "AdminWhoAmIRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AdminWhoAmIRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAdminWhoAmIRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AdminWhoAmIRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AdminWhoAmIRequestValidationError{}
+
+// Validate checks the field values on AdminWhoAmIResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *AdminWhoAmIResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AdminWhoAmIResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// AdminWhoAmIResponseMultiError, or nil if none found.
+func (m *AdminWhoAmIResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AdminWhoAmIResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for User
+
+	if all {
+		switch v := interface{}(m.GetExpiresAt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, AdminWhoAmIResponseValidationError{
+					field:  "ExpiresAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, AdminWhoAmIResponseValidationError{
+					field:  "ExpiresAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetExpiresAt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return AdminWhoAmIResponseValidationError{
+				field:  "ExpiresAt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return AdminWhoAmIResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// AdminWhoAmIResponseMultiError is an error wrapping multiple validation
+// errors returned by AdminWhoAmIResponse.ValidateAll() if the designated
+// constraints aren't met.
+type AdminWhoAmIResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AdminWhoAmIResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AdminWhoAmIResponseMultiError) AllErrors() []error { return m }
+
+// AdminWhoAmIResponseValidationError is the validation error returned by
+// AdminWhoAmIResponse.Validate if the designated constraints aren't met.
+type AdminWhoAmIResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AdminWhoAmIResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AdminWhoAmIResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AdminWhoAmIResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AdminWhoAmIResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AdminWhoAmIResponseValidationError) ErrorName() string {
+	return "AdminWhoAmIResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AdminWhoAmIResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAdminWhoAmIResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AdminWhoAmIResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AdminWhoAmIResponseValidationError{}

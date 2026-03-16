@@ -10,6 +10,8 @@
 - 响应字段遵循 protobuf JSON 映射规则，通常为 `camelCase`
 - `GET` 接口的请求字段通过 query string 传递
 - `POST` / `PATCH` 接口按 JSON body 传递
+- `/api/v1/admin/` 下的 HTTP 接口默认需要 `Authorization: Bearer <token>`
+- `POST /api/v1/admin/auth:login` 不需要 token，用于换取登录 token
 
 ## Admin Auth
 
@@ -31,7 +33,61 @@
 ```json
 {
   "success": true,
+  "message": "ok",
+  "token": "your-admin-token",
+  "expiresAt": "2026-03-17T12:00:00Z"
+}
+```
+
+登录成功后，前端需要把返回的 `token` 放进请求头：
+
+```text
+Authorization: Bearer your-admin-token
+```
+
+### `POST /api/v1/admin/auth:logout`
+
+管理员登出，删除当前 token。
+
+请求头：
+
+```text
+Authorization: Bearer your-admin-token
+```
+
+请求体示例：
+
+```json
+{
+  "token": "your-admin-token"
+}
+```
+
+响应体示例：
+
+```json
+{
+  "success": true,
   "message": "ok"
+}
+```
+
+### `GET /api/v1/admin/auth:me`
+
+读取当前 Bearer token 对应的管理员登录态。
+
+请求头：
+
+```text
+Authorization: Bearer your-admin-token
+```
+
+响应体示例：
+
+```json
+{
+  "user": "admin",
+  "expiresAt": "2026-03-17T12:00:00Z"
 }
 ```
 

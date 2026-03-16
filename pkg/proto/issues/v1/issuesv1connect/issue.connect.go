@@ -62,6 +62,12 @@ const (
 	// AdminAuthServiceAdminLoginProcedure is the fully-qualified name of the AdminAuthService's
 	// AdminLogin RPC.
 	AdminAuthServiceAdminLoginProcedure = "/issues.v1.AdminAuthService/AdminLogin"
+	// AdminAuthServiceAdminLogoutProcedure is the fully-qualified name of the AdminAuthService's
+	// AdminLogout RPC.
+	AdminAuthServiceAdminLogoutProcedure = "/issues.v1.AdminAuthService/AdminLogout"
+	// AdminAuthServiceAdminWhoAmIProcedure is the fully-qualified name of the AdminAuthService's
+	// AdminWhoAmI RPC.
+	AdminAuthServiceAdminWhoAmIProcedure = "/issues.v1.AdminAuthService/AdminWhoAmI"
 )
 
 // IssueSyncAdminServiceClient is a client for the issues.v1.IssueSyncAdminService service.
@@ -337,6 +343,8 @@ func (UnimplementedIssueQueryServiceHandler) GetIssue(context.Context, *connect.
 // AdminAuthServiceClient is a client for the issues.v1.AdminAuthService service.
 type AdminAuthServiceClient interface {
 	AdminLogin(context.Context, *connect.Request[v1.AdminLoginRequest]) (*connect.Response[v1.AdminLoginResponse], error)
+	AdminLogout(context.Context, *connect.Request[v1.AdminLogoutRequest]) (*connect.Response[v1.AdminLogoutResponse], error)
+	AdminWhoAmI(context.Context, *connect.Request[v1.AdminWhoAmIRequest]) (*connect.Response[v1.AdminWhoAmIResponse], error)
 }
 
 // NewAdminAuthServiceClient constructs a client for the issues.v1.AdminAuthService service. By
@@ -356,12 +364,26 @@ func NewAdminAuthServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adminAuthServiceMethods.ByName("AdminLogin")),
 			connect.WithClientOptions(opts...),
 		),
+		adminLogout: connect.NewClient[v1.AdminLogoutRequest, v1.AdminLogoutResponse](
+			httpClient,
+			baseURL+AdminAuthServiceAdminLogoutProcedure,
+			connect.WithSchema(adminAuthServiceMethods.ByName("AdminLogout")),
+			connect.WithClientOptions(opts...),
+		),
+		adminWhoAmI: connect.NewClient[v1.AdminWhoAmIRequest, v1.AdminWhoAmIResponse](
+			httpClient,
+			baseURL+AdminAuthServiceAdminWhoAmIProcedure,
+			connect.WithSchema(adminAuthServiceMethods.ByName("AdminWhoAmI")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminAuthServiceClient implements AdminAuthServiceClient.
 type adminAuthServiceClient struct {
-	adminLogin *connect.Client[v1.AdminLoginRequest, v1.AdminLoginResponse]
+	adminLogin  *connect.Client[v1.AdminLoginRequest, v1.AdminLoginResponse]
+	adminLogout *connect.Client[v1.AdminLogoutRequest, v1.AdminLogoutResponse]
+	adminWhoAmI *connect.Client[v1.AdminWhoAmIRequest, v1.AdminWhoAmIResponse]
 }
 
 // AdminLogin calls issues.v1.AdminAuthService.AdminLogin.
@@ -369,9 +391,21 @@ func (c *adminAuthServiceClient) AdminLogin(ctx context.Context, req *connect.Re
 	return c.adminLogin.CallUnary(ctx, req)
 }
 
+// AdminLogout calls issues.v1.AdminAuthService.AdminLogout.
+func (c *adminAuthServiceClient) AdminLogout(ctx context.Context, req *connect.Request[v1.AdminLogoutRequest]) (*connect.Response[v1.AdminLogoutResponse], error) {
+	return c.adminLogout.CallUnary(ctx, req)
+}
+
+// AdminWhoAmI calls issues.v1.AdminAuthService.AdminWhoAmI.
+func (c *adminAuthServiceClient) AdminWhoAmI(ctx context.Context, req *connect.Request[v1.AdminWhoAmIRequest]) (*connect.Response[v1.AdminWhoAmIResponse], error) {
+	return c.adminWhoAmI.CallUnary(ctx, req)
+}
+
 // AdminAuthServiceHandler is an implementation of the issues.v1.AdminAuthService service.
 type AdminAuthServiceHandler interface {
 	AdminLogin(context.Context, *connect.Request[v1.AdminLoginRequest]) (*connect.Response[v1.AdminLoginResponse], error)
+	AdminLogout(context.Context, *connect.Request[v1.AdminLogoutRequest]) (*connect.Response[v1.AdminLogoutResponse], error)
+	AdminWhoAmI(context.Context, *connect.Request[v1.AdminWhoAmIRequest]) (*connect.Response[v1.AdminWhoAmIResponse], error)
 }
 
 // NewAdminAuthServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -387,10 +421,26 @@ func NewAdminAuthServiceHandler(svc AdminAuthServiceHandler, opts ...connect.Han
 		connect.WithSchema(adminAuthServiceMethods.ByName("AdminLogin")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminAuthServiceAdminLogoutHandler := connect.NewUnaryHandler(
+		AdminAuthServiceAdminLogoutProcedure,
+		svc.AdminLogout,
+		connect.WithSchema(adminAuthServiceMethods.ByName("AdminLogout")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminAuthServiceAdminWhoAmIHandler := connect.NewUnaryHandler(
+		AdminAuthServiceAdminWhoAmIProcedure,
+		svc.AdminWhoAmI,
+		connect.WithSchema(adminAuthServiceMethods.ByName("AdminWhoAmI")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/issues.v1.AdminAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminAuthServiceAdminLoginProcedure:
 			adminAuthServiceAdminLoginHandler.ServeHTTP(w, r)
+		case AdminAuthServiceAdminLogoutProcedure:
+			adminAuthServiceAdminLogoutHandler.ServeHTTP(w, r)
+		case AdminAuthServiceAdminWhoAmIProcedure:
+			adminAuthServiceAdminWhoAmIHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -402,4 +452,12 @@ type UnimplementedAdminAuthServiceHandler struct{}
 
 func (UnimplementedAdminAuthServiceHandler) AdminLogin(context.Context, *connect.Request[v1.AdminLoginRequest]) (*connect.Response[v1.AdminLoginResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.AdminAuthService.AdminLogin is not implemented"))
+}
+
+func (UnimplementedAdminAuthServiceHandler) AdminLogout(context.Context, *connect.Request[v1.AdminLogoutRequest]) (*connect.Response[v1.AdminLogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.AdminAuthService.AdminLogout is not implemented"))
+}
+
+func (UnimplementedAdminAuthServiceHandler) AdminWhoAmI(context.Context, *connect.Request[v1.AdminWhoAmIRequest]) (*connect.Response[v1.AdminWhoAmIResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.AdminAuthService.AdminWhoAmI is not implemented"))
 }

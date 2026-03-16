@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/kongken/datasrv/service/datasrv/internal/service"
 	"google.golang.org/grpc"
 )
 
@@ -34,7 +36,7 @@ func TestRegisterHTTPRoutesForwardsToGatewayHandler(t *testing.T) {
 			t.Fatalf("path = %q, want /api/v1/issues", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusAccepted)
-	}))
+	}), &fakeAdminTokenValidator{})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/issues", nil)
 	rec := httptest.NewRecorder()
@@ -46,4 +48,125 @@ func TestRegisterHTTPRoutesForwardsToGatewayHandler(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
 	}
+}
+
+func TestRegisterHTTPRoutesProtectsAdminEndpoints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	called := false
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/issues/sync-status", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if called {
+		t.Fatal("gateway handler should not be called without token")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestRegisterHTTPRoutesAllowsAdminLoginWithoutToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	called := false
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/auth:login", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if !called {
+		t.Fatal("gateway handler should be called for login route")
+	}
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+	}
+}
+
+func TestRegisterHTTPRoutesAllowsAdminEndpointsWithValidBearerToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	called := false
+	store := &fakeAdminTokenValidator{user: "admin"}
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}), store)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/issues/sync-status", nil)
+	req.Header.Set("Authorization", "Bearer tok-123")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if !called {
+		t.Fatal("gateway handler should be called with valid token")
+	}
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+	}
+	if store.lastToken != "tok-123" {
+		t.Fatalf("validated token = %q, want tok-123", store.lastToken)
+	}
+}
+
+func TestRegisterHTTPRoutesRejectsRevokedBearerToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	called := false
+	store := &fakeAdminTokenValidator{err: errors.New("revoked")}
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}), store)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/issues/sync-status", nil)
+	req.Header.Set("Authorization", "Bearer tok-123")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if called {
+		t.Fatal("gateway handler should not be called with revoked token")
+	}
+	if rec.Code != http.StatusServiceUnavailable && rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want auth failure status", rec.Code)
+	}
+}
+
+type fakeAdminTokenValidator struct {
+	lastToken string
+	user      string
+	err       error
+}
+
+func (s *fakeAdminTokenValidator) SaveToken(context.Context, string, string, time.Duration) error {
+	return nil
+}
+
+func (s *fakeAdminTokenValidator) DeleteToken(context.Context, string) error {
+	return nil
+}
+
+func (s *fakeAdminTokenValidator) GetSession(context.Context, string) (service.AdminSession, error) {
+	return service.AdminSession{}, nil
+}
+
+func (s *fakeAdminTokenValidator) ValidateToken(_ context.Context, token string) (string, error) {
+	s.lastToken = token
+	if s.err != nil {
+		return "", s.err
+	}
+	return s.user, nil
 }

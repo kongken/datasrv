@@ -2,13 +2,16 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	feedsv1 "github.com/kongken/datasrv/pkg/proto/feeds/v1"
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
+	"github.com/kongken/datasrv/service/datasrv/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -18,6 +21,7 @@ const grpcGatewayEndpoint = "localhost:9090"
 type gatewayRegistrar func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error
 
 var gatewayHandler http.Handler
+var adminTokenValidator service.AdminTokenStore
 
 func initGatewayHandler() error {
 	handler, err := newGatewayMux(context.Background(), grpcGatewayEndpoint, []grpc.DialOption{
@@ -36,7 +40,7 @@ func initGatewayHandler() error {
 }
 
 func newGatewayMux(ctx context.Context, endpoint string, opts []grpc.DialOption, registrars ...gatewayRegistrar) (http.Handler, error) {
-	mux := runtime.NewServeMux()
+	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(gatewayHeaderMatcher))
 	for _, register := range registrars {
 		if err := register(ctx, mux, endpoint, opts); err != nil {
 			return nil, err
@@ -45,7 +49,7 @@ func newGatewayMux(ctx context.Context, endpoint string, opts []grpc.DialOption,
 	return mux, nil
 }
 
-func registerHTTPRoutes(r *gin.Engine, gateway http.Handler) {
+func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.AdminTokenStore) {
 	if gateway == nil {
 		r.NoRoute(func(c *gin.Context) {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "grpc gateway is not initialized"})
@@ -57,10 +61,73 @@ func registerHTTPRoutes(r *gin.Engine, gateway http.Handler) {
 	}
 
 	wrapped := gin.WrapH(gateway)
-	r.NoRoute(wrapped)
-	r.NoMethod(wrapped)
+	adminProtected := adminAuthMiddleware(tokens, wrapped)
+	r.NoRoute(func(c *gin.Context) {
+		if isAdminHTTPPath(c.Request.URL.Path) {
+			adminProtected(c)
+			return
+		}
+		wrapped(c)
+	})
+	r.NoMethod(func(c *gin.Context) {
+		if isAdminHTTPPath(c.Request.URL.Path) {
+			adminProtected(c)
+			return
+		}
+		wrapped(c)
+	})
 }
 
 func setupHTTPRouter(r *gin.Engine) {
-	registerHTTPRoutes(r, gatewayHandler)
+	registerHTTPRoutes(r, gatewayHandler, adminTokenValidator)
+}
+
+func adminAuthMiddleware(tokens service.AdminTokenStore, next gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if isAdminLoginPath(c.Request.URL.Path) {
+			next(c)
+			return
+		}
+		if tokens == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "admin auth token store is not initialized"})
+			return
+		}
+
+		token := bearerToken(c.GetHeader("Authorization"))
+		if token == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing bearer token"})
+			return
+		}
+		if _, err := tokens.ValidateToken(c.Request.Context(), token); err != nil {
+			if errors.Is(err, service.ErrAdminTokenNotFound) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid bearer token"})
+				return
+			}
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "admin auth validation failed"})
+			return
+		}
+		next(c)
+	}
+}
+
+func isAdminHTTPPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/")
+}
+
+func isAdminLoginPath(path string) bool {
+	return path == "/api/v1/admin/auth:login"
+}
+
+func bearerToken(header string) string {
+	if !strings.HasPrefix(header, "Bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+}
+
+func gatewayHeaderMatcher(key string) (string, bool) {
+	if strings.EqualFold(key, "Authorization") {
+		return "authorization", true
+	}
+	return runtime.DefaultHeaderMatcher(key)
 }

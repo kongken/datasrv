@@ -123,4 +123,10 @@ type AdminConfig struct {
 
 	// Password is the admin login password.
 	Password string `yaml:"password" json:"password"`
+
+	// RedisName is the named Redis client used to persist admin auth tokens.
+	RedisName string `yaml:"redis_name" json:"redis_name"`
+
+	// TokenTTLSeconds controls how long issued admin tokens remain valid.
+	TokenTTLSeconds int `yaml:"token_ttl_seconds" json:"token_ttl_seconds"`
 }
