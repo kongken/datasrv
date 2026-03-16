@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -70,6 +71,7 @@ func TestRegisterHTTPRoutesProtectsAdminEndpoints(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
+	assertAdminAuthError(t, rec, "admin_auth_missing_token", "missing bearer token")
 }
 
 func TestRegisterHTTPRoutesAllowsAdminLoginWithoutToken(t *testing.T) {
@@ -140,15 +142,30 @@ func TestRegisterHTTPRoutesRejectsRevokedBearerToken(t *testing.T) {
 	if called {
 		t.Fatal("gateway handler should not be called with revoked token")
 	}
-	if rec.Code != http.StatusServiceUnavailable && rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want auth failure status", rec.Code)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
+	assertAdminAuthError(t, rec, "admin_auth_validation_failed", "admin auth validation failed")
 }
 
 type fakeAdminTokenValidator struct {
 	lastToken string
 	user      string
 	err       error
+}
+
+func assertAdminAuthError(t *testing.T, rec *httptest.ResponseRecorder, code, message string) {
+	t.Helper()
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal error body: %v", err)
+	}
+	if body["code"] != code {
+		t.Fatalf("code = %q, want %q", body["code"], code)
+	}
+	if body["message"] != message {
+		t.Fatalf("message = %q, want %q", body["message"], message)
+	}
 }
 
 func (s *fakeAdminTokenValidator) SaveToken(context.Context, string, string, time.Duration) error {

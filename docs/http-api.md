@@ -294,3 +294,21 @@ GET /api/v1/feed-contents?feedSourceId=feed-source-id&page=1&pageSize=20
 
 - 当前文档基于 proto 中的 grpc-gateway 路由注解整理。
 - 如果后续 proto 路径或字段名变化，需要同步更新本文档。
+
+## Admin Auth Errors
+
+admin HTTP 鉴权失败时，响应体统一为：
+
+```json
+{
+  "code": "admin_auth_missing_token",
+  "message": "missing bearer token"
+}
+```
+
+当前会返回的常见错误码：
+
+- `admin_auth_missing_token`: 缺少 `Authorization: Bearer <token>`
+- `admin_auth_invalid_token`: token 不存在或已失效
+- `admin_auth_validation_failed`: Redis 校验失败或服务异常
+- `admin_auth_store_unavailable`: token store 未初始化

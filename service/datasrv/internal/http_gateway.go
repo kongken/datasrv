@@ -52,10 +52,10 @@ func newGatewayMux(ctx context.Context, endpoint string, opts []grpc.DialOption,
 func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.AdminTokenStore) {
 	if gateway == nil {
 		r.NoRoute(func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "grpc gateway is not initialized"})
+			writeAdminAuthError(c, http.StatusServiceUnavailable, "gateway_not_initialized", "grpc gateway is not initialized")
 		})
 		r.NoMethod(func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "grpc gateway is not initialized"})
+			writeAdminAuthError(c, http.StatusServiceUnavailable, "gateway_not_initialized", "grpc gateway is not initialized")
 		})
 		return
 	}
@@ -89,21 +89,21 @@ func adminAuthMiddleware(tokens service.AdminTokenStore, next gin.HandlerFunc) g
 			return
 		}
 		if tokens == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "admin auth token store is not initialized"})
+			writeAdminAuthError(c, http.StatusServiceUnavailable, "admin_auth_store_unavailable", "admin auth token store is not initialized")
 			return
 		}
 
 		token := bearerToken(c.GetHeader("Authorization"))
 		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing bearer token"})
+			writeAdminAuthError(c, http.StatusUnauthorized, "admin_auth_missing_token", "missing bearer token")
 			return
 		}
 		if _, err := tokens.ValidateToken(c.Request.Context(), token); err != nil {
 			if errors.Is(err, service.ErrAdminTokenNotFound) {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid bearer token"})
+				writeAdminAuthError(c, http.StatusUnauthorized, "admin_auth_invalid_token", "invalid bearer token")
 				return
 			}
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "admin auth validation failed"})
+			writeAdminAuthError(c, http.StatusServiceUnavailable, "admin_auth_validation_failed", "admin auth validation failed")
 			return
 		}
 		next(c)
@@ -130,4 +130,11 @@ func gatewayHeaderMatcher(key string) (string, bool) {
 		return "authorization", true
 	}
 	return runtime.DefaultHeaderMatcher(key)
+}
+
+func writeAdminAuthError(c *gin.Context, statusCode int, code, message string) {
+	c.JSON(statusCode, gin.H{
+		"code":    code,
+		"message": message,
+	})
 }
