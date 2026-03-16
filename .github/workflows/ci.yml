@@ -19,6 +19,39 @@ env:
   DATASRV_GITHUB_TOKEN: ${{ secrets.DATASRV_GITHUB_TOKEN }}
 
 jobs:
+  front-admin:
+    name: Front Admin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: front-admin/package-lock.json
+
+      - name: Install dependencies
+        working-directory: front-admin
+        run: npm ci
+
+      - name: Lint
+        working-directory: front-admin
+        run: npm run lint
+
+      - name: Build
+        working-directory: front-admin
+        run: npm run build
+
+      - name: Frontend summary
+        run: |
+          echo "## Front Admin Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Command: \`npm ci\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Command: \`npm run lint\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Command: \`npm run build\`" >> "$GITHUB_STEP_SUMMARY"
+
   proto:
     name: Proto & Codegen Check
     runs-on: ubuntu-latest

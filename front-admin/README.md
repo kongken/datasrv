@@ -29,3 +29,17 @@ npm run dev
 - TanStack Query
 - react-hook-form + zod
 - Tailwind CSS
+
+## Docker
+
+本地构建镜像：
+
+```bash
+docker build -t datasrv-front-admin:local ./front-admin
+```
+
+本地运行：
+
+```bash
+docker run --rm -p 8081:80 datasrv-front-admin:local
+```
