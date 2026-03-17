@@ -38,6 +38,7 @@ var (
 func NewApp() *app.App {
 	app := core.New(&app.Config{
 		Config:       conf.Conf,
+		Namespace:    "auto",
 		Service:      "datasrv",
 		Router:       setupHTTPRouter,
 		GRPCRegister: registerGRPC,
