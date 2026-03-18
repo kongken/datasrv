@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 )
 
 var (
+	appLogger          = slog.Default().With("component", "datasrv.app")
 	syncStore          dao.SyncStore
 	feedStore          dao.FeedStore
 	syncService        *service.IssueSyncService
@@ -119,6 +121,10 @@ func initSyncComponents() error {
 	if err := syncService.SeedManagedRepos(context.Background(), conf.Conf.GitHubSync.Repos); err != nil {
 		return fmt.Errorf("seed managed repos: %w", err)
 	}
+	managedRepos, err := syncService.ListManagedRepos(context.Background())
+	if err != nil {
+		return fmt.Errorf("list managed repos after seed: %w", err)
+	}
 	feedSyncService = service.NewFeedSyncService(feedStore, conf.Conf.FeedSync, nil)
 	adminGRPC = service.NewIssueSyncAdminGRPCServer(syncStore, syncService, conf.Conf)
 	adminTokenValidator = service.NewRedisAdminTokenStore(conf.Conf)
@@ -126,6 +132,13 @@ func initSyncComponents() error {
 	queryGRPC = service.NewIssueQueryGRPCServer(syncStore)
 	feedAdminGRPC = service.NewFeedSyncAdminGRPCServer(feedStore, feedSyncService, conf.Conf)
 	feedQueryGRPC = service.NewFeedQueryGRPCServer(feedStore)
+	appLogger.Info("sync components initialized",
+		"storage_driver", driver,
+		"issue_sync_enabled", conf.Conf.GitHubSync.Enabled,
+		"managed_repo_count", len(managedRepos),
+		"managed_repos", managedRepoNames(managedRepos),
+		"feed_sync_enabled", conf.Conf.FeedSync.Enabled,
+	)
 	return nil
 }
 
@@ -149,6 +162,15 @@ func startSyncScheduler() error {
 	if interval <= 0 {
 		interval = 5 * time.Minute
 	}
+	managedRepos, err := syncService.ListManagedRepos(context.Background())
+	if err != nil {
+		return fmt.Errorf("list managed repos before scheduler start: %w", err)
+	}
+	appLogger.Info("issue sync scheduler started",
+		"interval", interval.String(),
+		"managed_repo_count", len(managedRepos),
+		"managed_repos", managedRepoNames(managedRepos),
+	)
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -156,10 +178,18 @@ func startSyncScheduler() error {
 		for {
 			select {
 			case <-ticker.C:
-				_, _ = syncService.RunSync(schedulerCtx, "")
+				appLogger.Info("issue sync tick triggered")
+				summary, err := syncService.RunSync(schedulerCtx, "")
+				if err != nil {
+					appLogger.Error("issue sync run failed", "error", err)
+					continue
+				}
+				logIssueSyncSummary(summary)
 			case <-schedulerStopC:
+				appLogger.Info("issue sync scheduler stopped")
 				return
 			case <-schedulerCtx.Done():
+				appLogger.Info("issue sync scheduler context done")
 				return
 			}
 		}
@@ -176,6 +206,7 @@ func startSyncScheduler() error {
 			if interval <= 0 {
 				interval = 5 * time.Minute
 			}
+			appLogger.Info("feed sync scheduler started", "interval", interval.String())
 
 			go func() {
 				ticker := time.NewTicker(interval)
@@ -183,10 +214,22 @@ func startSyncScheduler() error {
 				for {
 					select {
 					case <-ticker.C:
-						_, _ = feedSyncService.RunSync(feedSchedulerCtx, "")
+						appLogger.Info("feed sync tick triggered")
+						summary, err := feedSyncService.RunSync(feedSchedulerCtx, "")
+						if err != nil {
+							appLogger.Error("feed sync run failed", "error", err)
+							continue
+						}
+						appLogger.Info("feed sync run finished",
+							"started_at", summary.StartedAt,
+							"finished_at", summary.FinishedAt,
+							"result_count", len(summary.Results),
+						)
 					case <-feedSchedulerStopC:
+						appLogger.Info("feed sync scheduler stopped")
 						return
 					case <-feedSchedulerCtx.Done():
+						appLogger.Info("feed sync scheduler context done")
 						return
 					}
 				}
@@ -224,4 +267,36 @@ func closeSyncStore() error {
 		return feedStore.Close()
 	}
 	return nil
+}
+
+func managedRepoNames(repos []dao.ManagedRepo) []string {
+	names := make([]string, 0, len(repos))
+	for _, repo := range repos {
+		names = append(names, repo.Repo)
+	}
+	return names
+}
+
+func logIssueSyncSummary(summary service.SyncRunSummary) {
+	appLogger.Info("issue sync run finished",
+		"started_at", summary.StartedAt,
+		"finished_at", summary.FinishedAt,
+		"result_count", len(summary.Results),
+	)
+	for _, result := range summary.Results {
+		if result.Err != "" {
+			appLogger.Error("issue sync repo failed",
+				"repo", result.Repo,
+				"fetched", result.Fetched,
+				"persisted", result.Persisted,
+				"error", result.Err,
+			)
+			continue
+		}
+		appLogger.Info("issue sync repo finished",
+			"repo", result.Repo,
+			"fetched", result.Fetched,
+			"persisted", result.Persisted,
+		)
+	}
 }
