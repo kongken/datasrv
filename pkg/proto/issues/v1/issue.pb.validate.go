@@ -1540,6 +1540,406 @@ var _ interface {
 	ErrorName() string
 } = UpdateSyncConfigRequestValidationError{}
 
+// Validate checks the field values on ManagedSyncRepo with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *ManagedSyncRepo) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ManagedSyncRepo with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ManagedSyncRepoMultiError, or nil if none found.
+func (m *ManagedSyncRepo) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ManagedSyncRepo) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Repo
+
+	if all {
+		switch v := interface{}(m.GetCreatedAt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ManagedSyncRepoValidationError{
+					field:  "CreatedAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ManagedSyncRepoValidationError{
+					field:  "CreatedAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetCreatedAt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ManagedSyncRepoValidationError{
+				field:  "CreatedAt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetUpdatedAt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ManagedSyncRepoValidationError{
+					field:  "UpdatedAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ManagedSyncRepoValidationError{
+					field:  "UpdatedAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetUpdatedAt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ManagedSyncRepoValidationError{
+				field:  "UpdatedAt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return ManagedSyncRepoMultiError(errors)
+	}
+
+	return nil
+}
+
+// ManagedSyncRepoMultiError is an error wrapping multiple validation errors
+// returned by ManagedSyncRepo.ValidateAll() if the designated constraints
+// aren't met.
+type ManagedSyncRepoMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ManagedSyncRepoMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ManagedSyncRepoMultiError) AllErrors() []error { return m }
+
+// ManagedSyncRepoValidationError is the validation error returned by
+// ManagedSyncRepo.Validate if the designated constraints aren't met.
+type ManagedSyncRepoValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ManagedSyncRepoValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ManagedSyncRepoValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ManagedSyncRepoValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ManagedSyncRepoValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ManagedSyncRepoValidationError) ErrorName() string { return "ManagedSyncRepoValidationError" }
+
+// Error satisfies the builtin error interface
+func (e ManagedSyncRepoValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sManagedSyncRepo.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ManagedSyncRepoValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ManagedSyncRepoValidationError{}
+
+// Validate checks the field values on ListManagedSyncReposResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ListManagedSyncReposResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ListManagedSyncReposResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ListManagedSyncReposResponseMultiError, or nil if none found.
+func (m *ListManagedSyncReposResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ListManagedSyncReposResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetRepos() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ListManagedSyncReposResponseValidationError{
+						field:  fmt.Sprintf("Repos[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ListManagedSyncReposResponseValidationError{
+						field:  fmt.Sprintf("Repos[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ListManagedSyncReposResponseValidationError{
+					field:  fmt.Sprintf("Repos[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return ListManagedSyncReposResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ListManagedSyncReposResponseMultiError is an error wrapping multiple
+// validation errors returned by ListManagedSyncReposResponse.ValidateAll() if
+// the designated constraints aren't met.
+type ListManagedSyncReposResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ListManagedSyncReposResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ListManagedSyncReposResponseMultiError) AllErrors() []error { return m }
+
+// ListManagedSyncReposResponseValidationError is the validation error returned
+// by ListManagedSyncReposResponse.Validate if the designated constraints
+// aren't met.
+type ListManagedSyncReposResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ListManagedSyncReposResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ListManagedSyncReposResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ListManagedSyncReposResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ListManagedSyncReposResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ListManagedSyncReposResponseValidationError) ErrorName() string {
+	return "ListManagedSyncReposResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ListManagedSyncReposResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sListManagedSyncReposResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ListManagedSyncReposResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ListManagedSyncReposResponseValidationError{}
+
+// Validate checks the field values on ReplaceManagedSyncReposRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ReplaceManagedSyncReposRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ReplaceManagedSyncReposRequest with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// ReplaceManagedSyncReposRequestMultiError, or nil if none found.
+func (m *ReplaceManagedSyncReposRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ReplaceManagedSyncReposRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return ReplaceManagedSyncReposRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// ReplaceManagedSyncReposRequestMultiError is an error wrapping multiple
+// validation errors returned by ReplaceManagedSyncReposRequest.ValidateAll()
+// if the designated constraints aren't met.
+type ReplaceManagedSyncReposRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ReplaceManagedSyncReposRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ReplaceManagedSyncReposRequestMultiError) AllErrors() []error { return m }
+
+// ReplaceManagedSyncReposRequestValidationError is the validation error
+// returned by ReplaceManagedSyncReposRequest.Validate if the designated
+// constraints aren't met.
+type ReplaceManagedSyncReposRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ReplaceManagedSyncReposRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ReplaceManagedSyncReposRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ReplaceManagedSyncReposRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ReplaceManagedSyncReposRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ReplaceManagedSyncReposRequestValidationError) ErrorName() string {
+	return "ReplaceManagedSyncReposRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ReplaceManagedSyncReposRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sReplaceManagedSyncReposRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ReplaceManagedSyncReposRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ReplaceManagedSyncReposRequestValidationError{}
+
 // Validate checks the field values on SyncCheckpoint with the rules defined in
 // the proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.

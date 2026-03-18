@@ -170,6 +170,20 @@ message UpdateSyncConfigRequest {
   int32 request_timeout_seconds = 6;
 }
 
+message ManagedSyncRepo {
+  string repo = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message ListManagedSyncReposResponse {
+  repeated ManagedSyncRepo repos = 1;
+}
+
+message ReplaceManagedSyncReposRequest {
+  repeated string repos = 1;
+}
+
 message SyncCheckpoint {
   string repo = 1;
   google.protobuf.Timestamp last_synced_at = 2;
@@ -268,6 +282,17 @@ service IssueSyncAdminService {
   rpc UpdateSyncConfig(UpdateSyncConfigRequest) returns (GetSyncConfigResponse) {
     option (google.api.http) = {
       patch: "/api/v1/admin/issues/sync-config"
+      body: "*"
+    };
+  }
+  rpc ListManagedSyncRepos(google.protobuf.Empty) returns (ListManagedSyncReposResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/issues/repos"
+    };
+  }
+  rpc ReplaceManagedSyncRepos(ReplaceManagedSyncReposRequest) returns (ListManagedSyncReposResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/admin/issues/repos"
       body: "*"
     };
   }

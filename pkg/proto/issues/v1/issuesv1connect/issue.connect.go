@@ -47,6 +47,12 @@ const (
 	// IssueSyncAdminServiceUpdateSyncConfigProcedure is the fully-qualified name of the
 	// IssueSyncAdminService's UpdateSyncConfig RPC.
 	IssueSyncAdminServiceUpdateSyncConfigProcedure = "/issues.v1.IssueSyncAdminService/UpdateSyncConfig"
+	// IssueSyncAdminServiceListManagedSyncReposProcedure is the fully-qualified name of the
+	// IssueSyncAdminService's ListManagedSyncRepos RPC.
+	IssueSyncAdminServiceListManagedSyncReposProcedure = "/issues.v1.IssueSyncAdminService/ListManagedSyncRepos"
+	// IssueSyncAdminServiceReplaceManagedSyncReposProcedure is the fully-qualified name of the
+	// IssueSyncAdminService's ReplaceManagedSyncRepos RPC.
+	IssueSyncAdminServiceReplaceManagedSyncReposProcedure = "/issues.v1.IssueSyncAdminService/ReplaceManagedSyncRepos"
 	// IssueSyncAdminServiceGetSyncStatusProcedure is the fully-qualified name of the
 	// IssueSyncAdminService's GetSyncStatus RPC.
 	IssueSyncAdminServiceGetSyncStatusProcedure = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
@@ -75,6 +81,8 @@ type IssueSyncAdminServiceClient interface {
 	SyncIssues(context.Context, *connect.Request[v1.SyncIssuesRequest]) (*connect.Response[v1.SyncIssuesResponse], error)
 	GetSyncConfig(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncConfigResponse], error)
 	UpdateSyncConfig(context.Context, *connect.Request[v1.UpdateSyncConfigRequest]) (*connect.Response[v1.GetSyncConfigResponse], error)
+	ListManagedSyncRepos(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.ListManagedSyncReposResponse], error)
+	ReplaceManagedSyncRepos(context.Context, *connect.Request[v1.ReplaceManagedSyncReposRequest]) (*connect.Response[v1.ListManagedSyncReposResponse], error)
 	GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error)
 	UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error)
 }
@@ -108,6 +116,18 @@ func NewIssueSyncAdminServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(issueSyncAdminServiceMethods.ByName("UpdateSyncConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		listManagedSyncRepos: connect.NewClient[emptypb.Empty, v1.ListManagedSyncReposResponse](
+			httpClient,
+			baseURL+IssueSyncAdminServiceListManagedSyncReposProcedure,
+			connect.WithSchema(issueSyncAdminServiceMethods.ByName("ListManagedSyncRepos")),
+			connect.WithClientOptions(opts...),
+		),
+		replaceManagedSyncRepos: connect.NewClient[v1.ReplaceManagedSyncReposRequest, v1.ListManagedSyncReposResponse](
+			httpClient,
+			baseURL+IssueSyncAdminServiceReplaceManagedSyncReposProcedure,
+			connect.WithSchema(issueSyncAdminServiceMethods.ByName("ReplaceManagedSyncRepos")),
+			connect.WithClientOptions(opts...),
+		),
 		getSyncStatus: connect.NewClient[emptypb.Empty, v1.GetSyncStatusResponse](
 			httpClient,
 			baseURL+IssueSyncAdminServiceGetSyncStatusProcedure,
@@ -125,11 +145,13 @@ func NewIssueSyncAdminServiceClient(httpClient connect.HTTPClient, baseURL strin
 
 // issueSyncAdminServiceClient implements IssueSyncAdminServiceClient.
 type issueSyncAdminServiceClient struct {
-	syncIssues           *connect.Client[v1.SyncIssuesRequest, v1.SyncIssuesResponse]
-	getSyncConfig        *connect.Client[emptypb.Empty, v1.GetSyncConfigResponse]
-	updateSyncConfig     *connect.Client[v1.UpdateSyncConfigRequest, v1.GetSyncConfigResponse]
-	getSyncStatus        *connect.Client[emptypb.Empty, v1.GetSyncStatusResponse]
-	updateIssueAISummary *connect.Client[v1.UpdateIssueAISummaryRequest, v1.GetIssueResponse]
+	syncIssues              *connect.Client[v1.SyncIssuesRequest, v1.SyncIssuesResponse]
+	getSyncConfig           *connect.Client[emptypb.Empty, v1.GetSyncConfigResponse]
+	updateSyncConfig        *connect.Client[v1.UpdateSyncConfigRequest, v1.GetSyncConfigResponse]
+	listManagedSyncRepos    *connect.Client[emptypb.Empty, v1.ListManagedSyncReposResponse]
+	replaceManagedSyncRepos *connect.Client[v1.ReplaceManagedSyncReposRequest, v1.ListManagedSyncReposResponse]
+	getSyncStatus           *connect.Client[emptypb.Empty, v1.GetSyncStatusResponse]
+	updateIssueAISummary    *connect.Client[v1.UpdateIssueAISummaryRequest, v1.GetIssueResponse]
 }
 
 // SyncIssues calls issues.v1.IssueSyncAdminService.SyncIssues.
@@ -147,6 +169,16 @@ func (c *issueSyncAdminServiceClient) UpdateSyncConfig(ctx context.Context, req 
 	return c.updateSyncConfig.CallUnary(ctx, req)
 }
 
+// ListManagedSyncRepos calls issues.v1.IssueSyncAdminService.ListManagedSyncRepos.
+func (c *issueSyncAdminServiceClient) ListManagedSyncRepos(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[v1.ListManagedSyncReposResponse], error) {
+	return c.listManagedSyncRepos.CallUnary(ctx, req)
+}
+
+// ReplaceManagedSyncRepos calls issues.v1.IssueSyncAdminService.ReplaceManagedSyncRepos.
+func (c *issueSyncAdminServiceClient) ReplaceManagedSyncRepos(ctx context.Context, req *connect.Request[v1.ReplaceManagedSyncReposRequest]) (*connect.Response[v1.ListManagedSyncReposResponse], error) {
+	return c.replaceManagedSyncRepos.CallUnary(ctx, req)
+}
+
 // GetSyncStatus calls issues.v1.IssueSyncAdminService.GetSyncStatus.
 func (c *issueSyncAdminServiceClient) GetSyncStatus(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error) {
 	return c.getSyncStatus.CallUnary(ctx, req)
@@ -162,6 +194,8 @@ type IssueSyncAdminServiceHandler interface {
 	SyncIssues(context.Context, *connect.Request[v1.SyncIssuesRequest]) (*connect.Response[v1.SyncIssuesResponse], error)
 	GetSyncConfig(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncConfigResponse], error)
 	UpdateSyncConfig(context.Context, *connect.Request[v1.UpdateSyncConfigRequest]) (*connect.Response[v1.GetSyncConfigResponse], error)
+	ListManagedSyncRepos(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.ListManagedSyncReposResponse], error)
+	ReplaceManagedSyncRepos(context.Context, *connect.Request[v1.ReplaceManagedSyncReposRequest]) (*connect.Response[v1.ListManagedSyncReposResponse], error)
 	GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error)
 	UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error)
 }
@@ -191,6 +225,18 @@ func NewIssueSyncAdminServiceHandler(svc IssueSyncAdminServiceHandler, opts ...c
 		connect.WithSchema(issueSyncAdminServiceMethods.ByName("UpdateSyncConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	issueSyncAdminServiceListManagedSyncReposHandler := connect.NewUnaryHandler(
+		IssueSyncAdminServiceListManagedSyncReposProcedure,
+		svc.ListManagedSyncRepos,
+		connect.WithSchema(issueSyncAdminServiceMethods.ByName("ListManagedSyncRepos")),
+		connect.WithHandlerOptions(opts...),
+	)
+	issueSyncAdminServiceReplaceManagedSyncReposHandler := connect.NewUnaryHandler(
+		IssueSyncAdminServiceReplaceManagedSyncReposProcedure,
+		svc.ReplaceManagedSyncRepos,
+		connect.WithSchema(issueSyncAdminServiceMethods.ByName("ReplaceManagedSyncRepos")),
+		connect.WithHandlerOptions(opts...),
+	)
 	issueSyncAdminServiceGetSyncStatusHandler := connect.NewUnaryHandler(
 		IssueSyncAdminServiceGetSyncStatusProcedure,
 		svc.GetSyncStatus,
@@ -211,6 +257,10 @@ func NewIssueSyncAdminServiceHandler(svc IssueSyncAdminServiceHandler, opts ...c
 			issueSyncAdminServiceGetSyncConfigHandler.ServeHTTP(w, r)
 		case IssueSyncAdminServiceUpdateSyncConfigProcedure:
 			issueSyncAdminServiceUpdateSyncConfigHandler.ServeHTTP(w, r)
+		case IssueSyncAdminServiceListManagedSyncReposProcedure:
+			issueSyncAdminServiceListManagedSyncReposHandler.ServeHTTP(w, r)
+		case IssueSyncAdminServiceReplaceManagedSyncReposProcedure:
+			issueSyncAdminServiceReplaceManagedSyncReposHandler.ServeHTTP(w, r)
 		case IssueSyncAdminServiceGetSyncStatusProcedure:
 			issueSyncAdminServiceGetSyncStatusHandler.ServeHTTP(w, r)
 		case IssueSyncAdminServiceUpdateIssueAISummaryProcedure:
@@ -234,6 +284,14 @@ func (UnimplementedIssueSyncAdminServiceHandler) GetSyncConfig(context.Context, 
 
 func (UnimplementedIssueSyncAdminServiceHandler) UpdateSyncConfig(context.Context, *connect.Request[v1.UpdateSyncConfigRequest]) (*connect.Response[v1.GetSyncConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.UpdateSyncConfig is not implemented"))
+}
+
+func (UnimplementedIssueSyncAdminServiceHandler) ListManagedSyncRepos(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.ListManagedSyncReposResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.ListManagedSyncRepos is not implemented"))
+}
+
+func (UnimplementedIssueSyncAdminServiceHandler) ReplaceManagedSyncRepos(context.Context, *connect.Request[v1.ReplaceManagedSyncReposRequest]) (*connect.Response[v1.ListManagedSyncReposResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.ReplaceManagedSyncRepos is not implemented"))
 }
 
 func (UnimplementedIssueSyncAdminServiceHandler) GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error) {

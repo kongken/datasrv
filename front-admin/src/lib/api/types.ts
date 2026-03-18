@@ -83,6 +83,12 @@ export type SyncConfig = {
   githubTokenConfigured?: boolean;
 };
 
+export type ManagedSyncRepo = {
+  repo: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type SyncCheckpoint = {
   repo: string;
   lastSyncedAt?: string;

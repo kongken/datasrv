@@ -10,20 +10,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getSyncConfig, getSyncStatus, triggerIssueSync, updateSyncConfig } from "@/lib/api/issues";
+import {
+  getManagedSyncRepos,
+  getSyncConfig,
+  getSyncStatus,
+  replaceManagedSyncRepos,
+  triggerIssueSync,
+  updateSyncConfig,
+} from "@/lib/api/issues";
 import { formatDateTime } from "@/lib/utils";
 
 const syncConfigSchema = z.object({
   enabled: z.boolean(),
-  repos: z.string(),
   intervalSeconds: z.coerce.number().int().min(1),
   pageSize: z.coerce.number().int().min(1),
   maxPagesPerRun: z.coerce.number().int().min(1),
   requestTimeoutSeconds: z.coerce.number().int().min(1),
 });
 
+const managedReposSchema = z.object({
+  repos: z.string(),
+});
+
 type SyncConfigFormValues = z.infer<typeof syncConfigSchema>;
 type SyncConfigFormInput = z.input<typeof syncConfigSchema>;
+type ManagedReposFormValues = z.infer<typeof managedReposSchema>;
+type ManagedReposFormInput = z.input<typeof managedReposSchema>;
 
 export function IssueSyncPage() {
   const queryClient = useQueryClient();
@@ -35,16 +47,25 @@ export function IssueSyncPage() {
     queryKey: ["issue-sync-status"],
     queryFn: getSyncStatus,
   });
+  const managedReposQuery = useQuery({
+    queryKey: ["issue-managed-repos"],
+    queryFn: getManagedSyncRepos,
+  });
 
   const form = useForm<SyncConfigFormInput, unknown, SyncConfigFormValues>({
     resolver: zodResolver(syncConfigSchema),
     defaultValues: {
       enabled: false,
-      repos: "",
       intervalSeconds: 300,
       pageSize: 50,
       maxPagesPerRun: 5,
       requestTimeoutSeconds: 10,
+    },
+  });
+  const managedReposForm = useForm<ManagedReposFormInput, unknown, ManagedReposFormValues>({
+    resolver: zodResolver(managedReposSchema),
+    defaultValues: {
+      repos: "",
     },
   });
 
@@ -54,13 +75,21 @@ export function IssueSyncPage() {
     }
     form.reset({
       enabled: configQuery.data.enabled,
-      repos: configQuery.data.repos.join("\n"),
       intervalSeconds: configQuery.data.intervalSeconds,
       pageSize: configQuery.data.pageSize,
       maxPagesPerRun: configQuery.data.maxPagesPerRun,
       requestTimeoutSeconds: configQuery.data.requestTimeoutSeconds,
     });
   }, [configQuery.data, form]);
+
+  useEffect(() => {
+    if (!managedReposQuery.data) {
+      return;
+    }
+    managedReposForm.reset({
+      repos: managedReposQuery.data.repos.map((item) => item.repo).join("\n"),
+    });
+  }, [managedReposForm, managedReposQuery.data]);
 
   const syncMutation = useMutation({
     mutationFn: (repo?: string) => triggerIssueSync(repo),
@@ -73,16 +102,27 @@ export function IssueSyncPage() {
     mutationFn: (values: SyncConfigFormValues) =>
       updateSyncConfig({
         enabled: values.enabled,
-        repos: values.repos
-          .split("\n")
-          .map((repo) => repo.trim())
-          .filter(Boolean),
+        repos: configQuery.data?.repos ?? [],
         intervalSeconds: values.intervalSeconds,
         pageSize: values.pageSize,
         maxPagesPerRun: values.maxPagesPerRun,
         requestTimeoutSeconds: values.requestTimeoutSeconds,
       }),
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["issue-sync-config"] });
+      await queryClient.invalidateQueries({ queryKey: ["issue-sync-status"] });
+    },
+  });
+  const saveReposMutation = useMutation({
+    mutationFn: (values: ManagedReposFormValues) =>
+      replaceManagedSyncRepos({
+        repos: values.repos
+          .split("\n")
+          .map((repo) => repo.trim())
+          .filter(Boolean),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["issue-managed-repos"] });
       await queryClient.invalidateQueries({ queryKey: ["issue-sync-config"] });
       await queryClient.invalidateQueries({ queryKey: ["issue-sync-status"] });
     },
@@ -142,6 +182,29 @@ export function IssueSyncPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>受管仓库列表</CardTitle>
+            <CardDescription>同步服务会从数据库中的仓库列表读取目标仓库；每行一个 `owner/repo`。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="space-y-4"
+              onSubmit={managedReposForm.handleSubmit(async (values) => {
+                await saveReposMutation.mutateAsync(values);
+              })}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="managedRepos">Repos</Label>
+                <Textarea id="managedRepos" placeholder="每行一个 owner/repo" {...managedReposForm.register("repos")} />
+              </div>
+              <Button type="submit" disabled={saveReposMutation.isPending}>
+                {saveReposMutation.isPending ? "保存中..." : "保存仓库列表"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>同步配置</CardTitle>
             <CardDescription>
               当前存储驱动：{configQuery.data?.storageDriver || "unknown"} · GitHub Token：
@@ -159,11 +222,6 @@ export function IssueSyncPage() {
                 <input type="checkbox" className="h-4 w-4" {...form.register("enabled")} />
                 启用 issue sync
               </label>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="repos">Repos</Label>
-                <Textarea id="repos" placeholder="每行一个 owner/repo" {...form.register("repos")} />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="intervalSeconds">Interval Seconds</Label>
                 <Input id="intervalSeconds" type="number" {...form.register("intervalSeconds")} />

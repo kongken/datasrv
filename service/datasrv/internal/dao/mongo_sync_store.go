@@ -39,6 +39,12 @@ type mongoCheckpointDoc struct {
 	UpdatedAt          time.Time `bson:"updated_at"`
 }
 
+type mongoManagedRepoDoc struct {
+	Repo      string    `bson:"repo"`
+	CreatedAt time.Time `bson:"created_at"`
+	UpdatedAt time.Time `bson:"updated_at"`
+}
+
 type mongoFeedSourceDoc struct {
 	ID            string    `bson:"id"`
 	URL           string    `bson:"url"`
@@ -89,6 +95,7 @@ type MongoSyncStore struct {
 	db              *mongo.Database
 	issuesCol       *mongo.Collection
 	checkpointC     *mongo.Collection
+	managedRepoC    *mongo.Collection
 	feedSourceC     *mongo.Collection
 	feedContentC    *mongo.Collection
 	feedCheckpointC *mongo.Collection
@@ -113,6 +120,7 @@ func NewMongoSyncStore(uri, dbName string) (*MongoSyncStore, error) {
 		db:              db,
 		issuesCol:       db.Collection("github_issues"),
 		checkpointC:     db.Collection("github_issue_checkpoints"),
+		managedRepoC:    db.Collection("github_sync_repos"),
 		feedSourceC:     db.Collection("rss_feed_sources"),
 		feedContentC:    db.Collection("rss_feed_contents"),
 		feedCheckpointC: db.Collection("rss_feed_checkpoints"),
@@ -141,6 +149,14 @@ func (m *MongoSyncStore) ensureIndexes(ctx context.Context) error {
 	})
 	if err != nil {
 		return fmt.Errorf("create checkpoint indexes: %w", err)
+	}
+
+	_, err = m.managedRepoC.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "repo", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		return fmt.Errorf("create managed repo indexes: %w", err)
 	}
 
 	_, err = m.feedSourceC.Indexes().CreateMany(ctx, []mongo.IndexModel{
@@ -206,6 +222,64 @@ func (m *MongoSyncStore) UpsertIssues(ctx context.Context, repo string, issues [
 		return 0, fmt.Errorf("mongo bulk upsert issues: %w", err)
 	}
 	return len(issues), nil
+}
+
+func (m *MongoSyncStore) ListManagedRepos(ctx context.Context) ([]ManagedRepo, error) {
+	cursor, err := m.managedRepoC.Find(ctx, bson.M{}, options.Find().SetSort(bson.D{{Key: "repo", Value: 1}}))
+	if err != nil {
+		return nil, fmt.Errorf("list managed repos: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	out := make([]ManagedRepo, 0)
+	for cursor.Next(ctx) {
+		var doc mongoManagedRepoDoc
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, fmt.Errorf("decode managed repo: %w", err)
+		}
+		out = append(out, ManagedRepo{
+			Repo:      doc.Repo,
+			CreatedAt: doc.CreatedAt,
+			UpdatedAt: doc.UpdatedAt,
+		})
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("iterate managed repos: %w", err)
+	}
+	return out, nil
+}
+
+func (m *MongoSyncStore) ReplaceManagedRepos(ctx context.Context, repos []string) ([]ManagedRepo, error) {
+	now := time.Now().UTC()
+	if len(repos) > 0 {
+		models := make([]mongo.WriteModel, 0, len(repos))
+		for _, repo := range repos {
+			models = append(models, mongo.NewUpdateOneModel().
+				SetFilter(bson.M{"repo": repo}).
+				SetUpdate(bson.M{
+					"$set": bson.M{
+						"repo":       repo,
+						"updated_at": now,
+					},
+					"$setOnInsert": bson.M{
+						"created_at": now,
+					},
+				}).
+				SetUpsert(true))
+		}
+		if _, err := m.managedRepoC.BulkWrite(ctx, models); err != nil {
+			return nil, fmt.Errorf("replace managed repos: %w", err)
+		}
+		if _, err := m.managedRepoC.DeleteMany(ctx, bson.M{"repo": bson.M{"$nin": repos}}); err != nil {
+			return nil, fmt.Errorf("delete stale managed repos: %w", err)
+		}
+	} else {
+		if _, err := m.managedRepoC.DeleteMany(ctx, bson.M{}); err != nil {
+			return nil, fmt.Errorf("clear managed repos: %w", err)
+		}
+	}
+
+	return m.ListManagedRepos(ctx)
 }
 
 func (m *MongoSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter) ([]SyncedIssue, error) {

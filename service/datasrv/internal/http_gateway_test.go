@@ -94,6 +94,9 @@ func TestRegisterHTTPRoutesAllowsAdminLoginWithoutToken(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
 	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want *", got)
+	}
 }
 
 func TestRegisterHTTPRoutesResetsNoRouteStatusBeforeGatewaySuccess(t *testing.T) {
@@ -167,6 +170,31 @@ func TestRegisterHTTPRoutesRejectsRevokedBearerToken(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
 	assertAdminAuthError(t, rec, "admin_auth_validation_failed", "admin auth validation failed")
+}
+
+func TestRegisterHTTPRoutesHandlesCORSPreflight(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	called := false
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/admin/auth:login", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if called {
+		t.Fatal("gateway handler should not be called for preflight")
+	}
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want *", got)
+	}
 }
 
 type fakeAdminTokenValidator struct {

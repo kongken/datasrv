@@ -50,6 +50,8 @@ func newGatewayMux(ctx context.Context, endpoint string, opts []grpc.DialOption,
 }
 
 func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.AdminTokenStore) {
+	r.Use(corsMiddleware())
+
 	if gateway == nil {
 		r.NoRoute(func(c *gin.Context) {
 			writeAdminAuthError(c, http.StatusServiceUnavailable, "gateway_not_initialized", "grpc gateway is not initialized")
@@ -80,6 +82,24 @@ func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.Admi
 
 func setupHTTPRouter(r *gin.Engine) {
 	registerHTTPRoutes(r, gatewayHandler, adminTokenValidator)
+}
+
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		headers := c.Writer.Header()
+		headers.Set("Access-Control-Allow-Origin", "*")
+		headers.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		headers.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin, X-Requested-With")
+		headers.Set("Access-Control-Expose-Headers", "Content-Length, Content-Type")
+		headers.Set("Access-Control-Max-Age", "86400")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	}
 }
 
 func forwardGateway(c *gin.Context, next gin.HandlerFunc) {

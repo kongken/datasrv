@@ -4,7 +4,7 @@ import type { ApiError } from "@/lib/api/types";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   params?: Record<string, string | number | boolean | undefined | null>;
   withAuth?: boolean;

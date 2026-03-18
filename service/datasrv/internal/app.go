@@ -116,6 +116,9 @@ func initSyncComponents() error {
 
 	conf.Conf.Storage.Driver = driver
 	syncService = service.NewIssueSyncService(syncStore, conf.Conf.GitHub, conf.Conf.GitHubSync)
+	if err := syncService.SeedManagedRepos(context.Background(), conf.Conf.GitHubSync.Repos); err != nil {
+		return fmt.Errorf("seed managed repos: %w", err)
+	}
 	feedSyncService = service.NewFeedSyncService(feedStore, conf.Conf.FeedSync, nil)
 	adminGRPC = service.NewIssueSyncAdminGRPCServer(syncStore, syncService, conf.Conf)
 	adminTokenValidator = service.NewRedisAdminTokenStore(conf.Conf)

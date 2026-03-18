@@ -2,6 +2,7 @@ import { apiRequest } from "@/lib/api/client";
 import type {
   Issue,
   ListIssuesResponse,
+  ManagedSyncRepo,
   SyncConfig,
   SyncRepoResult,
   SyncStatus,
@@ -31,6 +32,17 @@ export function getSyncConfig() {
 export function updateSyncConfig(payload: SyncConfig) {
   return apiRequest<SyncConfig>("/api/v1/admin/issues/sync-config", {
     method: "PATCH",
+    body: payload,
+  });
+}
+
+export function getManagedSyncRepos() {
+  return apiRequest<{ repos: ManagedSyncRepo[] }>("/api/v1/admin/issues/repos");
+}
+
+export function replaceManagedSyncRepos(payload: { repos: string[] }) {
+  return apiRequest<{ repos: ManagedSyncRepo[] }>("/api/v1/admin/issues/repos", {
+    method: "PUT",
     body: payload,
   });
 }

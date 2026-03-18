@@ -39,6 +39,12 @@ type Checkpoint struct {
 	UpdatedAt          time.Time
 }
 
+type ManagedRepo struct {
+	Repo      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 // SyncIssueFilter defines list parameters for admin read APIs.
 type SyncIssueFilter struct {
 	Repo    string
@@ -54,6 +60,8 @@ type SyncStore interface {
 	UpsertIssues(ctx context.Context, repo string, issues []SyncedIssue) (int, error)
 	ListIssues(ctx context.Context, filter SyncIssueFilter) ([]SyncedIssue, error)
 	UpdateIssueAISummary(ctx context.Context, repo string, issueID int64, number int32, summary string) (SyncedIssue, error)
+	ListManagedRepos(ctx context.Context) ([]ManagedRepo, error)
+	ReplaceManagedRepos(ctx context.Context, repos []string) ([]ManagedRepo, error)
 	GetRepoCheckpoint(ctx context.Context, repo string) (Checkpoint, error)
 	SaveRepoCheckpoint(ctx context.Context, checkpoint Checkpoint) error
 	ListCheckpoints(ctx context.Context) ([]Checkpoint, error)

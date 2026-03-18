@@ -14,6 +14,7 @@ import (
 
 func TestIssueSyncAdminGRPCServer_GetAndUpdateSyncConfig(t *testing.T) {
 	store := newFakeSyncStore()
+	_, _ = store.ReplaceManagedRepos(context.Background(), []string{"a/b"})
 	cfg := &conf.Config{
 		Storage: conf.StorageConfig{Driver: "postgres"},
 		GitHub:  conf.GitHubConfig{Token: "secret-token"},
@@ -45,6 +46,30 @@ func TestIssueSyncAdminGRPCServer_GetAndUpdateSyncConfig(t *testing.T) {
 	}
 	if len(updated.Repos) != 1 || updated.Repos[0] != "octo/repo" {
 		t.Fatalf("updated repos = %#v, want [octo/repo]", updated.Repos)
+	}
+}
+
+func TestIssueSyncAdminGRPCServer_ListAndReplaceManagedSyncRepos(t *testing.T) {
+	store := newFakeSyncStore()
+	_, _ = store.ReplaceManagedRepos(context.Background(), []string{"o/a"})
+	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}), &conf.Config{})
+
+	listed, err := srv.ListManagedSyncRepos(context.Background(), &emptypb.Empty{})
+	if err != nil {
+		t.Fatalf("ListManagedSyncRepos() error = %v", err)
+	}
+	if len(listed.Repos) != 1 || listed.Repos[0].GetRepo() != "o/a" {
+		t.Fatalf("listed repos = %#v, want [o/a]", listed.Repos)
+	}
+
+	replaced, err := srv.ReplaceManagedSyncRepos(context.Background(), &issuesv1.ReplaceManagedSyncReposRequest{
+		Repos: []string{"o/b", "o/c"},
+	})
+	if err != nil {
+		t.Fatalf("ReplaceManagedSyncRepos() error = %v", err)
+	}
+	if len(replaced.Repos) != 2 {
+		t.Fatalf("replaced repos len = %d, want 2", len(replaced.Repos))
 	}
 }
 
@@ -126,6 +151,12 @@ func (e *errorSyncStore) ListIssues(context.Context, dao.SyncIssueFilter) ([]dao
 }
 func (e *errorSyncStore) UpdateIssueAISummary(context.Context, string, int64, int32, string) (dao.SyncedIssue, error) {
 	return dao.SyncedIssue{}, context.DeadlineExceeded
+}
+func (e *errorSyncStore) ListManagedRepos(context.Context) ([]dao.ManagedRepo, error) {
+	return nil, context.DeadlineExceeded
+}
+func (e *errorSyncStore) ReplaceManagedRepos(context.Context, []string) ([]dao.ManagedRepo, error) {
+	return nil, context.DeadlineExceeded
 }
 func (e *errorSyncStore) GetRepoCheckpoint(context.Context, string) (dao.Checkpoint, error) {
 	return dao.Checkpoint{}, nil

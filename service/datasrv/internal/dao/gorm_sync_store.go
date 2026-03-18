@@ -45,6 +45,14 @@ type gormCheckpoint struct {
 
 func (gormCheckpoint) TableName() string { return "github_issue_checkpoints" }
 
+type gormManagedRepo struct {
+	Repo      string `gorm:"primaryKey;size:255"`
+	CreatedAt time.Time
+	UpdatedAt time.Time `gorm:"index"`
+}
+
+func (gormManagedRepo) TableName() string { return "github_sync_repos" }
+
 type gormFeedSource struct {
 	ID            string    `gorm:"primaryKey;size:64"`
 	URL           string    `gorm:"size:2048;not null;uniqueIndex"`
@@ -110,7 +118,7 @@ func NewGormSyncStore(dsn string) (*GormSyncStore, error) {
 		return nil, fmt.Errorf("open gorm postgres: %w", err)
 	}
 
-	if err := db.AutoMigrate(&gormIssue{}, &gormCheckpoint{}, &gormFeedSource{}, &gormFeedContent{}, &gormFeedCheckpoint{}); err != nil {
+	if err := db.AutoMigrate(&gormIssue{}, &gormCheckpoint{}, &gormManagedRepo{}, &gormFeedSource{}, &gormFeedContent{}, &gormFeedCheckpoint{}); err != nil {
 		return nil, fmt.Errorf("gorm automigrate: %w", err)
 	}
 
@@ -168,6 +176,70 @@ func (g *GormSyncStore) UpsertIssues(ctx context.Context, repo string, issues []
 	}
 
 	return len(issues), nil
+}
+
+func (g *GormSyncStore) ListManagedRepos(ctx context.Context) ([]ManagedRepo, error) {
+	var rows []gormManagedRepo
+	if err := g.db.WithContext(ctx).Order("repo ASC").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("gorm list managed repos: %w", err)
+	}
+
+	out := make([]ManagedRepo, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, ManagedRepo{
+			Repo:      row.Repo,
+			CreatedAt: row.CreatedAt,
+			UpdatedAt: row.UpdatedAt,
+		})
+	}
+	return out, nil
+}
+
+func (g *GormSyncStore) ReplaceManagedRepos(ctx context.Context, repos []string) ([]ManagedRepo, error) {
+	tx := g.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("gorm begin replace managed repos: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			_ = tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	now := time.Now().UTC()
+	if len(repos) > 0 {
+		rows := make([]gormManagedRepo, 0, len(repos))
+		for _, repo := range repos {
+			rows = append(rows, gormManagedRepo{
+				Repo:      repo,
+				CreatedAt: now,
+				UpdatedAt: now,
+			})
+		}
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "repo"}},
+			DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+		}).Create(&rows).Error; err != nil {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("gorm upsert managed repos: %w", err)
+		}
+
+		if err := tx.Where("repo NOT IN ?", repos).Delete(&gormManagedRepo{}).Error; err != nil {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("gorm delete stale managed repos: %w", err)
+		}
+	} else {
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&gormManagedRepo{}).Error; err != nil {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("gorm clear managed repos: %w", err)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("gorm commit managed repos: %w", err)
+	}
+	return g.ListManagedRepos(ctx)
 }
 
 func (g *GormSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter) ([]SyncedIssue, error) {

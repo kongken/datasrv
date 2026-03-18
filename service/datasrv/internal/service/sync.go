@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -90,6 +91,24 @@ func normalizeSyncConfig(in conf.GitHubSyncConfig) conf.GitHubSyncConfig {
 	return in
 }
 
+func normalizeManagedRepos(repos []string) []string {
+	seen := make(map[string]struct{}, len(repos))
+	out := make([]string, 0, len(repos))
+	for _, repo := range repos {
+		repo = strings.TrimSpace(repo)
+		if repo == "" {
+			continue
+		}
+		if _, ok := seen[repo]; ok {
+			continue
+		}
+		seen[repo] = struct{}{}
+		out = append(out, repo)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (s *IssueSyncService) GetConfig() conf.GitHubSyncConfig {
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
@@ -102,6 +121,34 @@ func (s *IssueSyncService) UpdateConfig(cfg conf.GitHubSyncConfig) conf.GitHubSy
 	s.cfg = normalized
 	s.cfgMu.Unlock()
 	return normalized
+}
+
+func (s *IssueSyncService) ListManagedRepos(ctx context.Context) ([]dao.ManagedRepo, error) {
+	repos, err := s.store.ListManagedRepos(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return repos, nil
+}
+
+func (s *IssueSyncService) ReplaceManagedRepos(ctx context.Context, repos []string) ([]dao.ManagedRepo, error) {
+	return s.store.ReplaceManagedRepos(ctx, normalizeManagedRepos(repos))
+}
+
+func (s *IssueSyncService) SeedManagedRepos(ctx context.Context, repos []string) error {
+	current, err := s.store.ListManagedRepos(ctx)
+	if err != nil {
+		return err
+	}
+	if len(current) > 0 {
+		return nil
+	}
+	normalized := normalizeManagedRepos(repos)
+	if len(normalized) == 0 {
+		return nil
+	}
+	_, err = s.store.ReplaceManagedRepos(ctx, normalized)
+	return err
 }
 
 func (s *IssueSyncService) IsRunning() bool {
@@ -132,7 +179,10 @@ func (s *IssueSyncService) RunSync(ctx context.Context, onlyRepo string) (SyncRu
 		return summary, nil
 	}
 
-	repos := cfg.Repos
+	repos, err := s.loadReposForRun(ctx, cfg, onlyRepo)
+	if err != nil {
+		return SyncRunSummary{}, err
+	}
 	if onlyRepo != "" {
 		repos = []string{onlyRepo}
 	}
@@ -143,6 +193,30 @@ func (s *IssueSyncService) RunSync(ctx context.Context, onlyRepo string) (SyncRu
 	}
 	summary.FinishedAt = time.Now()
 	return summary, nil
+}
+
+func (s *IssueSyncService) loadReposForRun(ctx context.Context, cfg conf.GitHubSyncConfig, onlyRepo string) ([]string, error) {
+	if onlyRepo != "" {
+		return []string{strings.TrimSpace(onlyRepo)}, nil
+	}
+
+	managed, err := s.store.ListManagedRepos(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list managed repos: %w", err)
+	}
+
+	if len(managed) > 0 {
+		repos := make([]string, 0, len(managed))
+		for _, repo := range managed {
+			if repo.Repo == "" {
+				continue
+			}
+			repos = append(repos, repo.Repo)
+		}
+		return repos, nil
+	}
+
+	return normalizeManagedRepos(cfg.Repos), nil
 }
 
 func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncConfig, repo string) SyncRepoResult {

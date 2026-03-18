@@ -1,0 +1,3 @@
+[mcp_servers.kubernetes-mcp-server]
+command = "npx"
+args = ["-y", "kubernetes-mcp-server@latest", "--kubeconfig", "~/.kube/air"]

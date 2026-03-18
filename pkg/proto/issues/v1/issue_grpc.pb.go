@@ -20,11 +20,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	IssueSyncAdminService_SyncIssues_FullMethodName           = "/issues.v1.IssueSyncAdminService/SyncIssues"
-	IssueSyncAdminService_GetSyncConfig_FullMethodName        = "/issues.v1.IssueSyncAdminService/GetSyncConfig"
-	IssueSyncAdminService_UpdateSyncConfig_FullMethodName     = "/issues.v1.IssueSyncAdminService/UpdateSyncConfig"
-	IssueSyncAdminService_GetSyncStatus_FullMethodName        = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
-	IssueSyncAdminService_UpdateIssueAISummary_FullMethodName = "/issues.v1.IssueSyncAdminService/UpdateIssueAISummary"
+	IssueSyncAdminService_SyncIssues_FullMethodName              = "/issues.v1.IssueSyncAdminService/SyncIssues"
+	IssueSyncAdminService_GetSyncConfig_FullMethodName           = "/issues.v1.IssueSyncAdminService/GetSyncConfig"
+	IssueSyncAdminService_UpdateSyncConfig_FullMethodName        = "/issues.v1.IssueSyncAdminService/UpdateSyncConfig"
+	IssueSyncAdminService_ListManagedSyncRepos_FullMethodName    = "/issues.v1.IssueSyncAdminService/ListManagedSyncRepos"
+	IssueSyncAdminService_ReplaceManagedSyncRepos_FullMethodName = "/issues.v1.IssueSyncAdminService/ReplaceManagedSyncRepos"
+	IssueSyncAdminService_GetSyncStatus_FullMethodName           = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
+	IssueSyncAdminService_UpdateIssueAISummary_FullMethodName    = "/issues.v1.IssueSyncAdminService/UpdateIssueAISummary"
 )
 
 // IssueSyncAdminServiceClient is the client API for IssueSyncAdminService service.
@@ -34,6 +36,8 @@ type IssueSyncAdminServiceClient interface {
 	SyncIssues(ctx context.Context, in *SyncIssuesRequest, opts ...grpc.CallOption) (*SyncIssuesResponse, error)
 	GetSyncConfig(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetSyncConfigResponse, error)
 	UpdateSyncConfig(ctx context.Context, in *UpdateSyncConfigRequest, opts ...grpc.CallOption) (*GetSyncConfigResponse, error)
+	ListManagedSyncRepos(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListManagedSyncReposResponse, error)
+	ReplaceManagedSyncRepos(ctx context.Context, in *ReplaceManagedSyncReposRequest, opts ...grpc.CallOption) (*ListManagedSyncReposResponse, error)
 	GetSyncStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetSyncStatusResponse, error)
 	UpdateIssueAISummary(ctx context.Context, in *UpdateIssueAISummaryRequest, opts ...grpc.CallOption) (*GetIssueResponse, error)
 }
@@ -76,6 +80,26 @@ func (c *issueSyncAdminServiceClient) UpdateSyncConfig(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *issueSyncAdminServiceClient) ListManagedSyncRepos(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListManagedSyncReposResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListManagedSyncReposResponse)
+	err := c.cc.Invoke(ctx, IssueSyncAdminService_ListManagedSyncRepos_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *issueSyncAdminServiceClient) ReplaceManagedSyncRepos(ctx context.Context, in *ReplaceManagedSyncReposRequest, opts ...grpc.CallOption) (*ListManagedSyncReposResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListManagedSyncReposResponse)
+	err := c.cc.Invoke(ctx, IssueSyncAdminService_ReplaceManagedSyncRepos_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *issueSyncAdminServiceClient) GetSyncStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetSyncStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetSyncStatusResponse)
@@ -103,6 +127,8 @@ type IssueSyncAdminServiceServer interface {
 	SyncIssues(context.Context, *SyncIssuesRequest) (*SyncIssuesResponse, error)
 	GetSyncConfig(context.Context, *emptypb.Empty) (*GetSyncConfigResponse, error)
 	UpdateSyncConfig(context.Context, *UpdateSyncConfigRequest) (*GetSyncConfigResponse, error)
+	ListManagedSyncRepos(context.Context, *emptypb.Empty) (*ListManagedSyncReposResponse, error)
+	ReplaceManagedSyncRepos(context.Context, *ReplaceManagedSyncReposRequest) (*ListManagedSyncReposResponse, error)
 	GetSyncStatus(context.Context, *emptypb.Empty) (*GetSyncStatusResponse, error)
 	UpdateIssueAISummary(context.Context, *UpdateIssueAISummaryRequest) (*GetIssueResponse, error)
 	mustEmbedUnimplementedIssueSyncAdminServiceServer()
@@ -123,6 +149,12 @@ func (UnimplementedIssueSyncAdminServiceServer) GetSyncConfig(context.Context, *
 }
 func (UnimplementedIssueSyncAdminServiceServer) UpdateSyncConfig(context.Context, *UpdateSyncConfigRequest) (*GetSyncConfigResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSyncConfig not implemented")
+}
+func (UnimplementedIssueSyncAdminServiceServer) ListManagedSyncRepos(context.Context, *emptypb.Empty) (*ListManagedSyncReposResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListManagedSyncRepos not implemented")
+}
+func (UnimplementedIssueSyncAdminServiceServer) ReplaceManagedSyncRepos(context.Context, *ReplaceManagedSyncReposRequest) (*ListManagedSyncReposResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReplaceManagedSyncRepos not implemented")
 }
 func (UnimplementedIssueSyncAdminServiceServer) GetSyncStatus(context.Context, *emptypb.Empty) (*GetSyncStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSyncStatus not implemented")
@@ -205,6 +237,42 @@ func _IssueSyncAdminService_UpdateSyncConfig_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IssueSyncAdminService_ListManagedSyncRepos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueSyncAdminServiceServer).ListManagedSyncRepos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueSyncAdminService_ListManagedSyncRepos_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueSyncAdminServiceServer).ListManagedSyncRepos(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IssueSyncAdminService_ReplaceManagedSyncRepos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReplaceManagedSyncReposRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueSyncAdminServiceServer).ReplaceManagedSyncRepos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueSyncAdminService_ReplaceManagedSyncRepos_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueSyncAdminServiceServer).ReplaceManagedSyncRepos(ctx, req.(*ReplaceManagedSyncReposRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IssueSyncAdminService_GetSyncStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -259,6 +327,14 @@ var IssueSyncAdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSyncConfig",
 			Handler:    _IssueSyncAdminService_UpdateSyncConfig_Handler,
+		},
+		{
+			MethodName: "ListManagedSyncRepos",
+			Handler:    _IssueSyncAdminService_ListManagedSyncRepos_Handler,
+		},
+		{
+			MethodName: "ReplaceManagedSyncRepos",
+			Handler:    _IssueSyncAdminService_ReplaceManagedSyncRepos_Handler,
 		},
 		{
 			MethodName: "GetSyncStatus",

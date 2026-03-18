@@ -58,9 +58,13 @@ func (s *IssueSyncAdminGRPCServer) SyncIssues(ctx context.Context, req *issuesv1
 
 func (s *IssueSyncAdminGRPCServer) GetSyncConfig(context.Context, *emptypb.Empty) (*issuesv1.GetSyncConfigResponse, error) {
 	cfg := s.syncSvc.GetConfig()
+	repos, err := s.syncSvc.ListManagedRepos(context.Background())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "list managed repos: %v", err)
+	}
 	return &issuesv1.GetSyncConfigResponse{
 		Enabled:               cfg.Enabled,
-		Repos:                 cfg.Repos,
+		Repos:                 managedRepoNames(repos),
 		IntervalSeconds:       int32(cfg.IntervalSeconds),
 		PageSize:              int32(cfg.PageSize),
 		MaxPagesPerRun:        int32(cfg.MaxPagesPerRun),
@@ -70,20 +74,34 @@ func (s *IssueSyncAdminGRPCServer) GetSyncConfig(context.Context, *emptypb.Empty
 	}, nil
 }
 
-func (s *IssueSyncAdminGRPCServer) UpdateSyncConfig(_ context.Context, req *issuesv1.UpdateSyncConfigRequest) (*issuesv1.GetSyncConfigResponse, error) {
+func (s *IssueSyncAdminGRPCServer) UpdateSyncConfig(ctx context.Context, req *issuesv1.UpdateSyncConfigRequest) (*issuesv1.GetSyncConfigResponse, error) {
 	updated := s.syncSvc.UpdateConfig(conf.GitHubSyncConfig{
 		Enabled:               req.GetEnabled(),
-		Repos:                 req.GetRepos(),
+		Repos:                 s.syncSvc.GetConfig().Repos,
 		IntervalSeconds:       int(req.GetIntervalSeconds()),
 		PageSize:              int(req.GetPageSize()),
 		MaxPagesPerRun:        int(req.GetMaxPagesPerRun()),
 		RequestTimeoutSeconds: int(req.GetRequestTimeoutSeconds()),
 	})
 
+	var managedRepos []dao.ManagedRepo
+	var err error
+	if req.Repos != nil {
+		managedRepos, err = s.syncSvc.ReplaceManagedRepos(ctx, req.GetRepos())
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "replace managed repos: %v", err)
+		}
+	} else {
+		managedRepos, err = s.syncSvc.ListManagedRepos(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "list managed repos: %v", err)
+		}
+	}
+
 	s.cfg.GitHubSync = updated
 	return &issuesv1.GetSyncConfigResponse{
 		Enabled:               updated.Enabled,
-		Repos:                 updated.Repos,
+		Repos:                 managedRepoNames(managedRepos),
 		IntervalSeconds:       int32(updated.IntervalSeconds),
 		PageSize:              int32(updated.PageSize),
 		MaxPagesPerRun:        int32(updated.MaxPagesPerRun),
@@ -91,6 +109,22 @@ func (s *IssueSyncAdminGRPCServer) UpdateSyncConfig(_ context.Context, req *issu
 		StorageDriver:         s.cfg.Storage.Driver,
 		GithubTokenConfigured: s.cfg.GitHub.Token != "",
 	}, nil
+}
+
+func (s *IssueSyncAdminGRPCServer) ListManagedSyncRepos(ctx context.Context, _ *emptypb.Empty) (*issuesv1.ListManagedSyncReposResponse, error) {
+	repos, err := s.syncSvc.ListManagedRepos(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "list managed repos: %v", err)
+	}
+	return &issuesv1.ListManagedSyncReposResponse{Repos: toProtoManagedRepos(repos)}, nil
+}
+
+func (s *IssueSyncAdminGRPCServer) ReplaceManagedSyncRepos(ctx context.Context, req *issuesv1.ReplaceManagedSyncReposRequest) (*issuesv1.ListManagedSyncReposResponse, error) {
+	repos, err := s.syncSvc.ReplaceManagedRepos(ctx, req.GetRepos())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "replace managed repos: %v", err)
+	}
+	return &issuesv1.ListManagedSyncReposResponse{Repos: toProtoManagedRepos(repos)}, nil
 }
 
 func (s *IssueSyncAdminGRPCServer) GetSyncStatus(ctx context.Context, _ *emptypb.Empty) (*issuesv1.GetSyncStatusResponse, error) {
@@ -162,4 +196,30 @@ func (s *IssueSyncAdminGRPCServer) UpdateIssueAISummary(ctx context.Context, req
 		return nil, status.Errorf(codes.Internal, "update issue ai summary: %v", err)
 	}
 	return &issuesv1.GetIssueResponse{Issue: toProtoIssue(updated)}, nil
+}
+
+func toProtoManagedRepos(repos []dao.ManagedRepo) []*issuesv1.ManagedSyncRepo {
+	out := make([]*issuesv1.ManagedSyncRepo, 0, len(repos))
+	for _, repo := range repos {
+		item := &issuesv1.ManagedSyncRepo{Repo: repo.Repo}
+		if !repo.CreatedAt.IsZero() {
+			item.CreatedAt = timestamppb.New(repo.CreatedAt)
+		}
+		if !repo.UpdatedAt.IsZero() {
+			item.UpdatedAt = timestamppb.New(repo.UpdatedAt)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func managedRepoNames(repos []dao.ManagedRepo) []string {
+	out := make([]string, 0, len(repos))
+	for _, repo := range repos {
+		if repo.Repo == "" {
+			continue
+		}
+		out = append(out, repo.Repo)
+	}
+	return out
 }

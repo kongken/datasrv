@@ -16,12 +16,14 @@ type fakeSyncStore struct {
 	mu          sync.Mutex
 	checkpoints map[string]dao.Checkpoint
 	issues      map[string][]dao.SyncedIssue
+	managed     map[string]dao.ManagedRepo
 }
 
 func newFakeSyncStore() *fakeSyncStore {
 	return &fakeSyncStore{
 		checkpoints: map[string]dao.Checkpoint{},
 		issues:      map[string][]dao.SyncedIssue{},
+		managed:     map[string]dao.ManagedRepo{},
 	}
 }
 
@@ -97,6 +99,39 @@ func (f *fakeSyncStore) GetRepoCheckpoint(_ context.Context, repo string) (dao.C
 		return cp, nil
 	}
 	return dao.Checkpoint{Repo: repo}, nil
+}
+
+func (f *fakeSyncStore) ListManagedRepos(_ context.Context) ([]dao.ManagedRepo, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]dao.ManagedRepo, 0, len(f.managed))
+	for _, repo := range f.managed {
+		out = append(out, repo)
+	}
+	return out, nil
+}
+
+func (f *fakeSyncStore) ReplaceManagedRepos(_ context.Context, repos []string) ([]dao.ManagedRepo, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	next := make(map[string]dao.ManagedRepo, len(repos))
+	now := time.Now().UTC()
+	for _, repo := range repos {
+		item, ok := f.managed[repo]
+		if !ok {
+			item = dao.ManagedRepo{Repo: repo, CreatedAt: now}
+		}
+		item.UpdatedAt = now
+		next[repo] = item
+	}
+	f.managed = next
+
+	out := make([]dao.ManagedRepo, 0, len(f.managed))
+	for _, repo := range f.managed {
+		out = append(out, repo)
+	}
+	return out, nil
 }
 
 func (f *fakeSyncStore) UpdateIssueAISummary(_ context.Context, repo string, issueID int64, number int32, summary string) (dao.SyncedIssue, error) {
