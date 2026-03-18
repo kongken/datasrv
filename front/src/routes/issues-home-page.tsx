@@ -29,13 +29,56 @@ export function IssuesHomePage() {
 
   return (
     <div className="space-y-6">
+      <section className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+        <Card className="overflow-hidden">
+          <CardHeader className="relative space-y-4">
+            <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">Public Discovery</p>
+              <CardTitle className="text-3xl md:text-4xl">把同步后的 Issue，做成可以直接访问的用户首页</CardTitle>
+              <CardDescription className="max-w-2xl text-sm leading-7">
+                默认展示 `golang/go` 的公开 issue。你也可以切换到任意已经同步进 datasrv 的仓库，
+                用一个更适合阅读和检索的界面浏览标题、摘要、标签和评论数。
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">SSR 首屏可见</span>
+              <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">支持详情页评论归档</span>
+              <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">按 repo / state / page 检索</span>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card className="bg-primary text-primary-foreground">
+          <CardHeader>
+            <CardTitle className="text-xl">当前筛选</CardTitle>
+            <CardDescription className="text-primary-foreground/78">
+              这组参数会直接反映在 URL 上，方便分享和被搜索引擎索引。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm">
+            <div className="rounded-xl bg-primary-foreground/10 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-primary-foreground/70">Repo</p>
+              <p className="mt-1 font-medium">{repo}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-primary-foreground/10 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-primary-foreground/70">State</p>
+                <p className="mt-1 font-medium">{state}</p>
+              </div>
+              <div className="rounded-xl bg-primary-foreground/10 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-primary-foreground/70">Page Size</p>
+                <p className="mt-1 font-medium">{pageSize}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
       <Card className="overflow-hidden">
-        <CardHeader className="relative">
-          <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          <CardTitle className="text-2xl">首页即问题列表</CardTitle>
-          <CardDescription>
-            默认展示 `golang/go` 的公开 issue。你也可以切换到任意已经同步进 datasrv 的仓库。
-          </CardDescription>
+        <CardHeader>
+          <CardTitle className="text-2xl">筛选与检索</CardTitle>
+          <CardDescription>修改参数后会重新请求公开接口，并生成对应的 SSR 页面。</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -85,13 +128,14 @@ export function IssuesHomePage() {
       {query.error ? <p className="text-sm text-rose-700">加载失败：{query.error.message}</p> : null}
 
       <div className="grid gap-4">
-        {query.data?.issues.map((issue) => (
+        {query.data?.issues.map((issue, index) => (
           <Card key={issue.id} className="transition-transform duration-200 hover:-translate-y-0.5">
             <CardHeader className="gap-3 md:flex-row md:items-start md:justify-between">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={issue.state === "open" ? "success" : "outline"}>{issue.state}</Badge>
                   <span className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{repo}</span>
+                  <span className="text-xs text-muted-foreground">No. {String((page - 1) * pageSize + index + 1).padStart(2, "0")}</span>
                 </div>
                 <div className="space-y-1">
                   <h2 className="text-xl font-semibold tracking-tight">#{issue.number} {issue.title}</h2>
@@ -140,6 +184,15 @@ export function IssuesHomePage() {
           </Card>
         ))}
       </div>
+
+      {query.data && query.data.issues.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-lg font-medium">这个筛选条件下没有可展示的 issues</p>
+            <p className="mt-2 text-sm text-muted-foreground">可以试试切换到 `all`，或者换一个已经同步过的仓库。</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {query.data ? (
         <div className="flex items-center justify-between gap-3">

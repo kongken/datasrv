@@ -1,0 +1,13 @@
+services:
+  datasrv-front:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: datasrv-front:local
+    container_name: datasrv-front
+    environment:
+      PORT: "3000"
+      API_PROXY_TARGET: "http://datasrv:8080"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

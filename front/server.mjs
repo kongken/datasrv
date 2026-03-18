@@ -133,9 +133,24 @@ const server = http.createServer(async (req, res) => {
       renderModule = await vite.ssrLoadModule("/src/entry-server.tsx");
     }
 
-    const { appHtml, dehydratedState } = await renderModule.render({ url, apiBaseUrl });
+    const { appHtml, dehydratedState, metadata } = await renderModule.render({ url, apiBaseUrl });
     const stateScript = `<script>window.__INITIAL_STATE__=${JSON.stringify(dehydratedState).replace(/</g, "\\u003c")}</script>`;
-    const html = htmlTemplate.replace("<!--app-html-->", appHtml).replace("<!--app-state-->", stateScript);
+    const head = [
+      `<title>${escapeHtml(metadata.title)}</title>`,
+      `<meta name="description" content="${escapeHtml(metadata.description)}" />`,
+      `<link rel="canonical" href="${escapeHtml(`${requestOrigin}${metadata.canonicalPath}`)}" />`,
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:title" content="${escapeHtml(metadata.title)}" />`,
+      `<meta property="og:description" content="${escapeHtml(metadata.description)}" />`,
+      `<meta property="og:url" content="${escapeHtml(`${requestOrigin}${metadata.canonicalPath}`)}" />`,
+      `<meta name="twitter:card" content="summary_large_image" />`,
+      `<meta name="twitter:title" content="${escapeHtml(metadata.title)}" />`,
+      `<meta name="twitter:description" content="${escapeHtml(metadata.description)}" />`,
+    ].join("");
+    const html = htmlTemplate
+      .replace("<!--app-head-->", head)
+      .replace("<!--app-html-->", appHtml)
+      .replace("<!--app-state-->", stateScript);
 
     send(res, 200, html, { "Content-Type": "text/html; charset=utf-8" });
   } catch (error) {
@@ -150,3 +165,12 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, () => {
   console.log(`datasrv front SSR listening on http://localhost:${port}`);
 });
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}

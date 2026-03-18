@@ -14,25 +14,46 @@ function SiteShell() {
 		className: "min-h-screen",
 		children: [/* @__PURE__ */ jsx("header", {
 			className: "border-b border-border/70 bg-background/75 backdrop-blur",
-			children: /* @__PURE__ */ jsx("div", {
-				className: "container flex flex-col gap-3 py-6 md:flex-row md:items-end md:justify-between",
-				children: /* @__PURE__ */ jsxs("div", {
-					className: "space-y-2",
+			children: /* @__PURE__ */ jsxs("div", {
+				className: "container flex flex-col gap-5 py-8 md:flex-row md:items-end md:justify-between",
+				children: [/* @__PURE__ */ jsxs("div", {
+					className: "space-y-3",
 					children: [
 						/* @__PURE__ */ jsx("p", {
 							className: "text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground",
 							children: "Datasrv Front"
 						}),
 						/* @__PURE__ */ jsx("h1", {
-							className: "text-3xl font-semibold tracking-tight text-foreground",
+							className: "text-4xl font-semibold tracking-tight text-foreground md:text-5xl",
 							children: "Issue Hub"
 						}),
 						/* @__PURE__ */ jsx("p", {
-							className: "max-w-2xl text-sm text-muted-foreground",
+							className: "max-w-2xl text-sm leading-7 text-muted-foreground",
 							children: "面向用户端的公开 issue 浏览页，支持按仓库、状态和分页查看同步后的 GitHub issues。"
 						})
 					]
-				})
+				}), /* @__PURE__ */ jsxs("div", {
+					className: "grid grid-cols-2 gap-3 text-sm text-muted-foreground",
+					children: [/* @__PURE__ */ jsxs("div", {
+						className: "rounded-2xl border border-border/70 bg-card/80 px-4 py-3 shadow-panel",
+						children: [/* @__PURE__ */ jsx("p", {
+							className: "text-[11px] uppercase tracking-[0.22em]",
+							children: "Rendering"
+						}), /* @__PURE__ */ jsx("p", {
+							className: "mt-1 font-medium text-foreground",
+							children: "SSR + Hydration"
+						})]
+					}), /* @__PURE__ */ jsxs("div", {
+						className: "rounded-2xl border border-border/70 bg-card/80 px-4 py-3 shadow-panel",
+						children: [/* @__PURE__ */ jsx("p", {
+							className: "text-[11px] uppercase tracking-[0.22em]",
+							children: "Data"
+						}), /* @__PURE__ */ jsx("p", {
+							className: "mt-1 font-medium text-foreground",
+							children: "Synced GitHub Issues"
+						})]
+					})]
+				})]
 			})
 		}), /* @__PURE__ */ jsx("main", {
 			className: "container py-8",
@@ -246,13 +267,20 @@ function IssueDetailPage() {
 			issue ? /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsxs(Card, { children: [/* @__PURE__ */ jsxs(CardHeader, { children: [
 				/* @__PURE__ */ jsxs("div", {
 					className: "flex flex-wrap items-center gap-2",
-					children: [/* @__PURE__ */ jsx(Badge, {
-						variant: issue.state === "open" ? "success" : "outline",
-						children: issue.state
-					}), /* @__PURE__ */ jsxs("span", {
-						className: "text-sm text-muted-foreground",
-						children: ["#", issue.number]
-					})]
+					children: [
+						/* @__PURE__ */ jsx(Badge, {
+							variant: issue.state === "open" ? "success" : "outline",
+							children: issue.state
+						}),
+						/* @__PURE__ */ jsxs("span", {
+							className: "text-sm text-muted-foreground",
+							children: ["#", issue.number]
+						}),
+						/* @__PURE__ */ jsx("span", {
+							className: "text-sm text-muted-foreground",
+							children: repo
+						})
+					]
 				}),
 				/* @__PURE__ */ jsx(CardTitle, {
 					className: "text-2xl",
@@ -374,19 +402,100 @@ function IssuesHomePage() {
 	return /* @__PURE__ */ jsxs("div", {
 		className: "space-y-6",
 		children: [
+			/* @__PURE__ */ jsxs("section", {
+				className: "grid gap-4 xl:grid-cols-[1.3fr_0.7fr]",
+				children: [/* @__PURE__ */ jsx(Card, {
+					className: "overflow-hidden",
+					children: /* @__PURE__ */ jsxs(CardHeader, {
+						className: "relative space-y-4",
+						children: [
+							/* @__PURE__ */ jsx("div", { className: "absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" }),
+							/* @__PURE__ */ jsxs("div", {
+								className: "space-y-3",
+								children: [
+									/* @__PURE__ */ jsx("p", {
+										className: "text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground",
+										children: "Public Discovery"
+									}),
+									/* @__PURE__ */ jsx(CardTitle, {
+										className: "text-3xl md:text-4xl",
+										children: "把同步后的 Issue，做成可以直接访问的用户首页"
+									}),
+									/* @__PURE__ */ jsx(CardDescription, {
+										className: "max-w-2xl text-sm leading-7",
+										children: "默认展示 `golang/go` 的公开 issue。你也可以切换到任意已经同步进 datasrv 的仓库， 用一个更适合阅读和检索的界面浏览标题、摘要、标签和评论数。"
+									})
+								]
+							}),
+							/* @__PURE__ */ jsxs("div", {
+								className: "flex flex-wrap gap-2 text-xs text-muted-foreground",
+								children: [
+									/* @__PURE__ */ jsx("span", {
+										className: "rounded-full border border-border/70 bg-background/70 px-3 py-1",
+										children: "SSR 首屏可见"
+									}),
+									/* @__PURE__ */ jsx("span", {
+										className: "rounded-full border border-border/70 bg-background/70 px-3 py-1",
+										children: "支持详情页评论归档"
+									}),
+									/* @__PURE__ */ jsx("span", {
+										className: "rounded-full border border-border/70 bg-background/70 px-3 py-1",
+										children: "按 repo / state / page 检索"
+									})
+								]
+							})
+						]
+					})
+				}), /* @__PURE__ */ jsxs(Card, {
+					className: "bg-primary text-primary-foreground",
+					children: [/* @__PURE__ */ jsxs(CardHeader, { children: [/* @__PURE__ */ jsx(CardTitle, {
+						className: "text-xl",
+						children: "当前筛选"
+					}), /* @__PURE__ */ jsx(CardDescription, {
+						className: "text-primary-foreground/78",
+						children: "这组参数会直接反映在 URL 上，方便分享和被搜索引擎索引。"
+					})] }), /* @__PURE__ */ jsxs(CardContent, {
+						className: "grid gap-3 text-sm",
+						children: [/* @__PURE__ */ jsxs("div", {
+							className: "rounded-xl bg-primary-foreground/10 px-4 py-3",
+							children: [/* @__PURE__ */ jsx("p", {
+								className: "text-[11px] uppercase tracking-[0.2em] text-primary-foreground/70",
+								children: "Repo"
+							}), /* @__PURE__ */ jsx("p", {
+								className: "mt-1 font-medium",
+								children: repo
+							})]
+						}), /* @__PURE__ */ jsxs("div", {
+							className: "grid grid-cols-2 gap-3",
+							children: [/* @__PURE__ */ jsxs("div", {
+								className: "rounded-xl bg-primary-foreground/10 px-4 py-3",
+								children: [/* @__PURE__ */ jsx("p", {
+									className: "text-[11px] uppercase tracking-[0.2em] text-primary-foreground/70",
+									children: "State"
+								}), /* @__PURE__ */ jsx("p", {
+									className: "mt-1 font-medium",
+									children: state
+								})]
+							}), /* @__PURE__ */ jsxs("div", {
+								className: "rounded-xl bg-primary-foreground/10 px-4 py-3",
+								children: [/* @__PURE__ */ jsx("p", {
+									className: "text-[11px] uppercase tracking-[0.2em] text-primary-foreground/70",
+									children: "Page Size"
+								}), /* @__PURE__ */ jsx("p", {
+									className: "mt-1 font-medium",
+									children: pageSize
+								})]
+							})]
+						})]
+					})]
+				})]
+			}),
 			/* @__PURE__ */ jsxs(Card, {
 				className: "overflow-hidden",
-				children: [/* @__PURE__ */ jsxs(CardHeader, {
-					className: "relative",
-					children: [
-						/* @__PURE__ */ jsx("div", { className: "absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" }),
-						/* @__PURE__ */ jsx(CardTitle, {
-							className: "text-2xl",
-							children: "首页即问题列表"
-						}),
-						/* @__PURE__ */ jsx(CardDescription, { children: "默认展示 `golang/go` 的公开 issue。你也可以切换到任意已经同步进 datasrv 的仓库。" })
-					]
-				}), /* @__PURE__ */ jsx(CardContent, { children: /* @__PURE__ */ jsxs("form", {
+				children: [/* @__PURE__ */ jsxs(CardHeader, { children: [/* @__PURE__ */ jsx(CardTitle, {
+					className: "text-2xl",
+					children: "筛选与检索"
+				}), /* @__PURE__ */ jsx(CardDescription, { children: "修改参数后会重新请求公开接口，并生成对应的 SSR 页面。" })] }), /* @__PURE__ */ jsx(CardContent, { children: /* @__PURE__ */ jsxs("form", {
 					className: "grid gap-4 md:grid-cols-[1.5fr_0.8fr_0.7fr_auto]",
 					onSubmit: (event) => {
 						event.preventDefault();
@@ -471,7 +580,7 @@ function IssuesHomePage() {
 			}) : null,
 			/* @__PURE__ */ jsx("div", {
 				className: "grid gap-4",
-				children: query.data?.issues.map((issue) => /* @__PURE__ */ jsxs(Card, {
+				children: query.data?.issues.map((issue, index) => /* @__PURE__ */ jsxs(Card, {
 					className: "transition-transform duration-200 hover:-translate-y-0.5",
 					children: [/* @__PURE__ */ jsxs(CardHeader, {
 						className: "gap-3 md:flex-row md:items-start md:justify-between",
@@ -479,13 +588,20 @@ function IssuesHomePage() {
 							className: "space-y-3",
 							children: [/* @__PURE__ */ jsxs("div", {
 								className: "flex flex-wrap items-center gap-2",
-								children: [/* @__PURE__ */ jsx(Badge, {
-									variant: issue.state === "open" ? "success" : "outline",
-									children: issue.state
-								}), /* @__PURE__ */ jsx("span", {
-									className: "text-xs uppercase tracking-[0.22em] text-muted-foreground",
-									children: repo
-								})]
+								children: [
+									/* @__PURE__ */ jsx(Badge, {
+										variant: issue.state === "open" ? "success" : "outline",
+										children: issue.state
+									}),
+									/* @__PURE__ */ jsx("span", {
+										className: "text-xs uppercase tracking-[0.22em] text-muted-foreground",
+										children: repo
+									}),
+									/* @__PURE__ */ jsxs("span", {
+										className: "text-xs text-muted-foreground",
+										children: ["No. ", String((page - 1) * pageSize + index + 1).padStart(2, "0")]
+									})
+								]
 							}), /* @__PURE__ */ jsxs("div", {
 								className: "space-y-1",
 								children: [/* @__PURE__ */ jsxs("h2", {
@@ -549,6 +665,16 @@ function IssuesHomePage() {
 					})]
 				}, issue.id))
 			}),
+			query.data && query.data.issues.length === 0 ? /* @__PURE__ */ jsx(Card, { children: /* @__PURE__ */ jsxs(CardContent, {
+				className: "py-10 text-center",
+				children: [/* @__PURE__ */ jsx("p", {
+					className: "text-lg font-medium",
+					children: "这个筛选条件下没有可展示的 issues"
+				}), /* @__PURE__ */ jsx("p", {
+					className: "mt-2 text-sm text-muted-foreground",
+					children: "可以试试切换到 `all`，或者换一个已经同步过的仓库。"
+				})]
+			}) }) : null,
 			query.data ? /* @__PURE__ */ jsxs("div", {
 				className: "flex items-center justify-between gap-3",
 				children: [/* @__PURE__ */ jsxs("p", {
@@ -669,13 +795,44 @@ async function render({ url, apiBaseUrl }) {
 		});
 	}
 	const dehydratedState = dehydrate(queryClient);
+	const metadata = buildMetadata({
+		requestURL,
+		issues: queryClient.getQueryData([
+			"public-issues",
+			requestURL.searchParams.get("repo") ?? "golang/go",
+			requestURL.searchParams.get("state") ?? "open",
+			Number(requestURL.searchParams.get("page") ?? "1"),
+			Number(requestURL.searchParams.get("pageSize") ?? "20")
+		]),
+		issueDetail: queryClient.getQueryData([
+			"public-issue-detail",
+			requestURL.searchParams.get("repo") ?? "",
+			Number(requestURL.searchParams.get("number") ?? "0")
+		])?.issue
+	});
 	return {
 		appHtml: renderToString(/* @__PURE__ */ jsx(AppProviders, {
 			dehydratedState,
 			routerMode: "static",
 			location: requestURL.pathname + requestURL.search
 		})),
-		dehydratedState
+		dehydratedState,
+		metadata
+	};
+}
+function buildMetadata({ requestURL, issues, issueDetail }) {
+	const repo = requestURL.searchParams.get("repo") ?? "golang/go";
+	const state = requestURL.searchParams.get("state") ?? "open";
+	const canonicalPath = requestURL.pathname + requestURL.search;
+	if (requestURL.pathname === "/issues/detail" && issueDetail) return {
+		title: `${issueDetail.title} · #${issueDetail.number} · ${repo} · Datasrv Issue Hub`,
+		description: (issueDetail.aiSummary || issueDetail.body || `${repo} issue detail`).replace(/\s+/g, " ").slice(0, 160),
+		canonicalPath
+	};
+	return {
+		title: `${repo} · ${state} issues · Datasrv Issue Hub`,
+		description: issues && issues.issues.length > 0 ? `浏览 ${repo} 的 ${state} issues，当前页共展示 ${issues.issues.length} 条结果。` : `浏览 ${repo} 的 ${state} issues，支持分页、详情和评论归档。`,
+		canonicalPath
 	};
 }
 //#endregion

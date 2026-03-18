@@ -24,7 +24,10 @@ export function IssueDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-2">
-          <Link to={`/?repo=${encodeURIComponent(repo)}`} className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+          <Link
+            to={`/?repo=${encodeURIComponent(repo)}`}
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
             返回列表
           </Link>
           <h2 className="text-3xl font-semibold tracking-tight">
@@ -50,6 +53,7 @@ export function IssueDetailPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={issue.state === "open" ? "success" : "outline"}>{issue.state}</Badge>
                 <span className="text-sm text-muted-foreground">#{issue.number}</span>
+                <span className="text-sm text-muted-foreground">{repo}</span>
               </div>
               <CardTitle className="text-2xl">{issue.title}</CardTitle>
               <CardDescription>
