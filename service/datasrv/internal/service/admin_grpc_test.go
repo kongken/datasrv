@@ -19,7 +19,7 @@ func TestIssueSyncAdminGRPCServer_GetAndUpdateSyncConfig(t *testing.T) {
 		Storage: conf.StorageConfig{Driver: "postgres"},
 		GitHub:  conf.GitHubConfig{Token: "secret-token"},
 	}
-	syncSvc := NewIssueSyncService(store, cfg.GitHub, conf.GitHubSyncConfig{Enabled: true, Repos: []string{"a/b"}})
+	syncSvc := NewIssueSyncService(store, cfg.GitHub, conf.GitHubSyncConfig{Enabled: true, Repos: []string{"a/b"}}, nil)
 	srv := NewIssueSyncAdminGRPCServer(store, syncSvc, cfg)
 
 	resp, err := srv.GetSyncConfig(context.Background(), &emptypb.Empty{})
@@ -52,7 +52,7 @@ func TestIssueSyncAdminGRPCServer_GetAndUpdateSyncConfig(t *testing.T) {
 func TestIssueSyncAdminGRPCServer_ListAndReplaceManagedSyncRepos(t *testing.T) {
 	store := newFakeSyncStore()
 	_, _ = store.ReplaceManagedRepos(context.Background(), []string{"o/a"})
-	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}), &conf.Config{})
+	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}, nil), &conf.Config{})
 
 	listed, err := srv.ListManagedSyncRepos(context.Background(), &emptypb.Empty{})
 	if err != nil {
@@ -83,7 +83,7 @@ func TestIssueSyncAdminGRPCServer_SyncIssuesAndStatus(t *testing.T) {
 		Enabled:               true,
 		Repos:                 []string{"owner/repo"},
 		RequestTimeoutSeconds: 5,
-	})
+	}, nil)
 	syncSvc.client = &fakeGitHubIssueClient{
 		responses: []fakeGitHubResponse{{issues: []*github.Issue{ghIssue(10, 10, time.Now().UTC())}, nextPage: 0}},
 	}
@@ -112,7 +112,7 @@ func TestIssueSyncAdminGRPCServer_SyncIssuesAndStatus(t *testing.T) {
 func TestIssueSyncAdminGRPCServer_GetSyncStatusError(t *testing.T) {
 	store := &errorSyncStore{}
 	cfg := &conf.Config{}
-	syncSvc := NewIssueSyncService(newFakeSyncStore(), conf.GitHubConfig{}, conf.GitHubSyncConfig{})
+	syncSvc := NewIssueSyncService(newFakeSyncStore(), conf.GitHubConfig{}, conf.GitHubSyncConfig{}, nil)
 	srv := NewIssueSyncAdminGRPCServer(store, syncSvc, cfg)
 
 	if _, err := srv.GetSyncStatus(context.Background(), &emptypb.Empty{}); err == nil {
@@ -127,7 +127,7 @@ func TestIssueSyncAdminGRPCServer_UpdateIssueAISummaryByNumber(t *testing.T) {
 		{Repo: "o/r", IssueID: 10, Number: 100, Title: "hello", State: "open", Author: "alice", UpdatedAt: now},
 	})
 
-	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}), &conf.Config{})
+	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}, nil), &conf.Config{})
 	resp, err := srv.UpdateIssueAISummary(context.Background(), &issuesv1.UpdateIssueAISummaryRequest{
 		Repo:      "o/r",
 		Selector:  &issuesv1.UpdateIssueAISummaryRequest_Number{Number: 100},

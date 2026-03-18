@@ -18,7 +18,7 @@ func TestIssueQueryGRPCServer_ListIssues(t *testing.T) {
 		{Repo: "o/r", IssueID: 3, Number: 3, Title: "three", State: "open", Author: "carol", UpdatedAt: now},
 	})
 
-	srv := NewIssueQueryGRPCServer(store)
+	srv := NewIssueQueryGRPCServer(store, nil)
 	resp, err := srv.ListIssues(context.Background(), &issuesv1.ListIssuesRequest{Repo: "o/r", State: "open", Page: 1, PageSize: 1})
 	if err != nil {
 		t.Fatalf("ListIssues() error = %v", err)
@@ -44,7 +44,7 @@ func TestIssueQueryGRPCServer_GetIssue(t *testing.T) {
 		{Repo: "o/r", IssueID: 10, Number: 100, Title: "hello", State: "open", Author: "alice", UpdatedAt: now, AISummary: "short summary"},
 	})
 
-	srv := NewIssueQueryGRPCServer(store)
+	srv := NewIssueQueryGRPCServer(store, nil)
 	resp, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{Repo: "o/r", Selector: &issuesv1.GetIssueRequest_Number{Number: 100}})
 	if err != nil {
 		t.Fatalf("GetIssue() error = %v", err)
@@ -58,11 +58,47 @@ func TestIssueQueryGRPCServer_GetIssue(t *testing.T) {
 }
 
 func TestIssueQueryGRPCServer_GetIssueValidation(t *testing.T) {
-	srv := NewIssueQueryGRPCServer(newFakeSyncStore())
+	srv := NewIssueQueryGRPCServer(newFakeSyncStore(), nil)
 	if _, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{Repo: "o/r"}); err == nil {
 		t.Fatalf("GetIssue() should fail when selector missing")
 	}
 	if _, err := srv.ListIssues(context.Background(), &issuesv1.ListIssuesRequest{}); err == nil {
 		t.Fatalf("ListIssues() should fail when repo missing")
+	}
+}
+
+func TestIssueQueryGRPCServer_GetIssueLoadsComments(t *testing.T) {
+	store := newFakeSyncStore()
+	commentStore := newFakeIssueCommentStore()
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
+		{
+			Repo:      "o/r",
+			IssueID:   10,
+			Number:    100,
+			Title:     "hello",
+			State:     "open",
+			Author:    "alice",
+			UpdatedAt: now,
+			Comments:  1,
+		},
+	})
+	commentStore.saved["o/r/10-100.json"] = []dao.IssueComment{{
+		ID:        1,
+		Body:      "reply",
+		UserLogin: "bob",
+		CreatedAt: now,
+	}}
+
+	srv := NewIssueQueryGRPCServer(store, commentStore)
+	resp, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{Repo: "o/r", Selector: &issuesv1.GetIssueRequest_Number{Number: 100}})
+	if err != nil {
+		t.Fatalf("GetIssue() error = %v", err)
+	}
+	if len(resp.GetIssue().GetCommentsDetail()) != 1 {
+		t.Fatalf("comments_detail len = %d, want 1", len(resp.GetIssue().GetCommentsDetail()))
+	}
+	if resp.GetIssue().GetCommentsDetail()[0].GetBody() != "reply" {
+		t.Fatalf("comment body = %q, want reply", resp.GetIssue().GetCommentsDetail()[0].GetBody())
 	}
 }

@@ -24,7 +24,7 @@ export function IssueDetailPage() {
       <PageHeader
         eyebrow="Issues"
         title={issue ? `#${issue.number} ${issue.title}` : "Issue 详情"}
-        description="查看 issue 正文、时间信息、标签和 AI 摘要。"
+        description="查看 issue 正文、时间信息、标签、AI 摘要和已归档评论。"
         actions={
           <Link className="text-sm text-primary underline-offset-4 hover:underline" to="/issues">
             返回列表
@@ -126,6 +126,39 @@ export function IssueDetailPage() {
                     )}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Comments</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {issue.commentsDetail?.length ? (
+                  issue.commentsDetail.map((comment) => (
+                    <div key={comment.id} className="rounded-lg border border-border/70 p-3">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-medium">{comment.user?.login || "unknown"}</span>
+                        <span className="text-muted-foreground">{formatDateTime(comment.createdAt)}</span>
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+                        {comment.body || "Empty comment"}
+                      </p>
+                      {comment.htmlUrl ? (
+                        <a
+                          className="mt-2 inline-block text-sm text-primary underline-offset-4 hover:underline"
+                          href={comment.htmlUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          打开 GitHub 评论
+                        </a>
+                      ) : null}
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground">暂无已同步评论。</span>
+                )}
               </CardContent>
             </Card>
           </div>

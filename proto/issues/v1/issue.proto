@@ -57,6 +57,9 @@ message Issue {
 
   // AI 生成或外部写入的摘要
   string ai_summary = 16;
+
+  // Full comments loaded from object storage on detail reads.
+  repeated IssueComment comments_detail = 17;
 }
 
 // User 表示 GitHub 用户

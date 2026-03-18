@@ -19,12 +19,22 @@ type fakeSyncStore struct {
 	managed     map[string]dao.ManagedRepo
 }
 
+type fakeIssueCommentStore struct {
+	saved   map[string][]dao.IssueComment
+	loadErr error
+	saveErr error
+}
+
 func newFakeSyncStore() *fakeSyncStore {
 	return &fakeSyncStore{
 		checkpoints: map[string]dao.Checkpoint{},
 		issues:      map[string][]dao.SyncedIssue{},
 		managed:     map[string]dao.ManagedRepo{},
 	}
+}
+
+func newFakeIssueCommentStore() *fakeIssueCommentStore {
+	return &fakeIssueCommentStore{saved: map[string][]dao.IssueComment{}}
 }
 
 func (f *fakeSyncStore) UpsertIssues(_ context.Context, repo string, issues []dao.SyncedIssue) (int, error) {
@@ -179,13 +189,20 @@ type listCall struct {
 }
 
 type fakeGitHubIssueClient struct {
-	mu        sync.Mutex
-	calls     []listCall
-	responses []fakeGitHubResponse
+	mu               sync.Mutex
+	calls            []listCall
+	responses        []fakeGitHubResponse
+	commentResponses map[int][]fakeGitHubCommentResponse
 }
 
 type fakeGitHubResponse struct {
 	issues   []*github.Issue
+	nextPage int
+	err      error
+}
+
+type fakeGitHubCommentResponse struct {
+	comments []*github.IssueComment
 	nextPage int
 	err      error
 }
@@ -203,6 +220,37 @@ func (f *fakeGitHubIssueClient) ListByRepo(_ context.Context, owner, repo string
 		return nil, nil, resp.err
 	}
 	return resp.issues, &github.Response{NextPage: resp.nextPage}, nil
+}
+
+func (f *fakeGitHubIssueClient) ListComments(_ context.Context, owner, repo string, issueNumber int, opts *github.IssueListCommentsOptions) ([]*github.IssueComment, *github.Response, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.commentResponses == nil || len(f.commentResponses[issueNumber]) == 0 {
+		return nil, &github.Response{}, nil
+	}
+	resp := f.commentResponses[issueNumber][0]
+	f.commentResponses[issueNumber] = f.commentResponses[issueNumber][1:]
+	if resp.err != nil {
+		return nil, nil, resp.err
+	}
+	return resp.comments, &github.Response{NextPage: resp.nextPage}, nil
+}
+
+func (f *fakeIssueCommentStore) SaveComments(_ context.Context, repo string, issueID int64, issueNumber int32, comments []dao.IssueComment) error {
+	if f.saveErr != nil {
+		return f.saveErr
+	}
+	key := fmt.Sprintf("%s/%d-%d.json", repo, issueID, issueNumber)
+	f.saved[key] = append([]dao.IssueComment(nil), comments...)
+	return nil
+}
+
+func (f *fakeIssueCommentStore) LoadComments(_ context.Context, repo string, issueID int64, issueNumber int32) ([]dao.IssueComment, error) {
+	if f.loadErr != nil {
+		return nil, f.loadErr
+	}
+	key := fmt.Sprintf("%s/%d-%d.json", repo, issueID, issueNumber)
+	return append([]dao.IssueComment(nil), f.saved[key]...), nil
 }
 
 func ghIssue(id int64, number int, updated time.Time) *github.Issue {
@@ -235,7 +283,7 @@ func TestNormalizeSyncConfigDefaults(t *testing.T) {
 
 func TestRunSyncDisabled(t *testing.T) {
 	store := newFakeSyncStore()
-	svc := NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{Enabled: false, Repos: []string{"a/b"}})
+	svc := NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{Enabled: false, Repos: []string{"a/b"}}, nil)
 	summary, err := svc.RunSync(context.Background(), "")
 	if err != nil {
 		t.Fatalf("RunSync() error = %v", err)
@@ -261,7 +309,7 @@ func TestRunSyncSuccessWithPaginationAndCheckpoint(t *testing.T) {
 		PageSize:              100,
 		MaxPagesPerRun:        10,
 		RequestTimeoutSeconds: 5,
-	})
+	}, nil)
 	svc.client = client
 
 	summary, err := svc.RunSync(context.Background(), "")
@@ -303,7 +351,7 @@ func TestRunSyncRetryThenSuccess(t *testing.T) {
 		Enabled:               true,
 		Repos:                 []string{"owner/repo"},
 		RequestTimeoutSeconds: 5,
-	})
+	}, nil)
 	svc.client = client
 
 	summary, err := svc.RunSync(context.Background(), "")
@@ -341,7 +389,7 @@ func TestRunSyncPreservesExistingAISummary(t *testing.T) {
 		Enabled:               true,
 		Repos:                 []string{"owner/repo"},
 		RequestTimeoutSeconds: 5,
-	})
+	}, nil)
 	svc.client = client
 
 	if _, err := svc.RunSync(context.Background(), ""); err != nil {
@@ -357,6 +405,51 @@ func TestRunSyncPreservesExistingAISummary(t *testing.T) {
 	}
 	if rows[0].AISummary != "keep me" {
 		t.Fatalf("ai_summary = %q, want keep me", rows[0].AISummary)
+	}
+}
+
+func TestRunSyncPersistsCommentsToBlobStore(t *testing.T) {
+	store := newFakeSyncStore()
+	commentStore := newFakeIssueCommentStore()
+	updated := time.Now().UTC()
+	client := &fakeGitHubIssueClient{
+		responses: []fakeGitHubResponse{
+			{issues: []*github.Issue{ghIssue(7, 77, updated)}, nextPage: 0},
+		},
+		commentResponses: map[int][]fakeGitHubCommentResponse{
+			77: {{
+				comments: []*github.IssueComment{{
+					ID:      github.Ptr(int64(7001)),
+					Body:    github.Ptr("first reply"),
+					HTMLURL: github.Ptr("https://example.com/comment/7001"),
+					User: &github.User{
+						Login: github.Ptr("alice"),
+					},
+				}},
+			}},
+		},
+	}
+	svc := NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{
+		Enabled:               true,
+		Repos:                 []string{"owner/repo"},
+		RequestTimeoutSeconds: 5,
+	}, commentStore)
+	svc.client = client
+
+	if _, err := svc.RunSync(context.Background(), ""); err != nil {
+		t.Fatalf("RunSync() error = %v", err)
+	}
+
+	rows, err := store.ListIssues(context.Background(), dao.SyncIssueFilter{Repo: "owner/repo", Number: 77, Limit: 1})
+	if err != nil {
+		t.Fatalf("ListIssues() error = %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("rows len = %d, want 1", len(rows))
+	}
+	key := "owner/repo/7-77.json"
+	if len(commentStore.saved[key]) != 1 {
+		t.Fatalf("saved comments len = %d, want 1", len(commentStore.saved[key]))
 	}
 }
 

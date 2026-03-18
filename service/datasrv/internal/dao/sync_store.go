@@ -29,6 +29,17 @@ type SyncedIssue struct {
 	Raw           string
 }
 
+type IssueComment struct {
+	ID            int64
+	Body          string
+	UserLogin     string
+	UserURL       string
+	UserAvatarURL string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	HTMLURL       string
+}
+
 // Checkpoint tracks last sync state per repository.
 type Checkpoint struct {
 	Repo               string

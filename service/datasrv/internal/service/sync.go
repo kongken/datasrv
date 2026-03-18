@@ -19,6 +19,7 @@ import (
 // GitHubIssueClient is the external client contract used by sync flow.
 type GitHubIssueClient interface {
 	ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error)
+	ListComments(ctx context.Context, owner, repo string, issueNumber int, opts *github.IssueListCommentsOptions) ([]*github.IssueComment, *github.Response, error)
 }
 
 type defaultGitHubIssueClient struct {
@@ -27,6 +28,10 @@ type defaultGitHubIssueClient struct {
 
 func (d *defaultGitHubIssueClient) ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error) {
 	return d.inner.Issues.ListByRepo(ctx, owner, repo, opts)
+}
+
+func (d *defaultGitHubIssueClient) ListComments(ctx context.Context, owner, repo string, issueNumber int, opts *github.IssueListCommentsOptions) ([]*github.IssueComment, *github.Response, error) {
+	return d.inner.Issues.ListComments(ctx, owner, repo, issueNumber, opts)
 }
 
 type SyncRepoResult struct {
@@ -50,11 +55,12 @@ type IssueSyncService struct {
 	cfgMu sync.RWMutex
 	cfg   conf.GitHubSyncConfig
 
-	store  dao.SyncStore
-	client GitHubIssueClient
+	store        dao.SyncStore
+	client       GitHubIssueClient
+	commentStore IssueCommentStore
 }
 
-func NewIssueSyncService(store dao.SyncStore, ghCfg conf.GitHubConfig, syncCfg conf.GitHubSyncConfig) *IssueSyncService {
+func NewIssueSyncService(store dao.SyncStore, ghCfg conf.GitHubConfig, syncCfg conf.GitHubSyncConfig, commentStore IssueCommentStore) *IssueSyncService {
 	httpClient := http.DefaultClient
 	if ghCfg.Token != "" {
 		ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: ghCfg.Token})
@@ -69,9 +75,10 @@ func NewIssueSyncService(store dao.SyncStore, ghCfg conf.GitHubConfig, syncCfg c
 
 	normalized := normalizeSyncConfig(syncCfg)
 	return &IssueSyncService{
-		cfg:    normalized,
-		store:  store,
-		client: &defaultGitHubIssueClient{inner: ghClient},
+		cfg:          normalized,
+		store:        store,
+		client:       &defaultGitHubIssueClient{inner: ghClient},
+		commentStore: commentStore,
 	}
 }
 
@@ -266,6 +273,19 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 		normalized := make([]dao.SyncedIssue, 0, len(issues))
 		for _, it := range issues {
 			record := toSyncedIssue(repo, it)
+			if s.commentStore != nil {
+				if err := s.syncIssueComments(requestCtx, repo, owner, name, &record); err != nil {
+					result.Err = err.Error()
+					_ = s.store.SaveRepoCheckpoint(ctx, dao.Checkpoint{
+						Repo:               repo,
+						LastSyncedAt:       time.Now(),
+						LastIssueUpdatedAt: cp.LastIssueUpdatedAt,
+						LastRunStatus:      "failed",
+						LastError:          result.Err,
+					})
+					return result
+				}
+			}
 			normalized = append(normalized, record)
 			result.Fetched++
 			if record.UpdatedAt.After(maxSeenUpdate) {
@@ -302,6 +322,50 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 	})
 
 	return result
+}
+
+func (s *IssueSyncService) syncIssueComments(ctx context.Context, repo, owner, name string, issue *dao.SyncedIssue) error {
+	if issue.Comments <= 0 {
+		return nil
+	}
+
+	comments, err := s.fetchIssueComments(ctx, owner, name, int(issue.Number))
+	if err != nil {
+		return err
+	}
+
+	if err := s.commentStore.SaveComments(ctx, repo, issue.IssueID, issue.Number, comments); err != nil {
+		return fmt.Errorf("save issue comments for %s#%d: %w", repo, issue.Number, err)
+	}
+	return nil
+}
+
+func (s *IssueSyncService) fetchIssueComments(ctx context.Context, owner, repo string, issueNumber int) ([]dao.IssueComment, error) {
+	currentPage := 1
+	out := make([]dao.IssueComment, 0)
+	for {
+		items, resp, err := s.client.ListComments(ctx, owner, repo, issueNumber, &github.IssueListCommentsOptions{
+			Sort:      github.Ptr("created"),
+			Direction: github.Ptr("asc"),
+			ListOptions: github.ListOptions{
+				Page:    currentPage,
+				PerPage: 100,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list issue comments for %s/%s#%d: %w", owner, repo, issueNumber, err)
+		}
+
+		for _, item := range items {
+			out = append(out, toIssueComment(item))
+		}
+
+		if resp == nil || resp.NextPage == 0 {
+			break
+		}
+		currentPage = resp.NextPage
+	}
+	return out, nil
 }
 
 func (s *IssueSyncService) listByRepoWithRetry(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error) {
@@ -365,4 +429,24 @@ func toSyncedIssue(repo string, issue *github.Issue) dao.SyncedIssue {
 		ClosedAt:      closedAt,
 		Raw:           string(raw),
 	}
+}
+
+func toIssueComment(in *github.IssueComment) dao.IssueComment {
+	out := dao.IssueComment{
+		ID:      in.GetID(),
+		Body:    in.GetBody(),
+		HTMLURL: in.GetHTMLURL(),
+	}
+	if in.User != nil {
+		out.UserLogin = in.User.GetLogin()
+		out.UserURL = in.User.GetHTMLURL()
+		out.UserAvatarURL = in.User.GetAvatarURL()
+	}
+	if in.CreatedAt != nil {
+		out.CreatedAt = in.GetCreatedAt().Time
+	}
+	if in.UpdatedAt != nil {
+		out.UpdatedAt = in.GetUpdatedAt().Time
+	}
+	return out
 }

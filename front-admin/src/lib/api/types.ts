@@ -63,6 +63,16 @@ export type Issue = {
   milestone?: IssueMilestone;
   locked: boolean;
   aiSummary?: string;
+  commentsDetail?: IssueComment[];
+};
+
+export type IssueComment = {
+  id: number;
+  body: string;
+  user?: IssueUser;
+  createdAt?: string;
+  updatedAt?: string;
+  htmlUrl?: string;
 };
 
 export type ListIssuesResponse = {

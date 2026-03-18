@@ -24,6 +24,7 @@ var (
 	appLogger          = slog.Default().With("component", "datasrv.app")
 	syncStore          dao.SyncStore
 	feedStore          dao.FeedStore
+	commentStore       service.IssueCommentStore
 	syncService        *service.IssueSyncService
 	feedSyncService    *service.FeedSyncService
 	adminGRPC          *service.IssueSyncAdminGRPCServer
@@ -87,6 +88,10 @@ func initSyncComponents() error {
 
 	var err error
 	var combined interface{}
+	commentStore, err = service.NewIssueCommentStore(conf.Conf.IssueCommentStorage)
+	if err != nil {
+		return fmt.Errorf("init issue comment store: %w", err)
+	}
 	switch driver {
 	case "mongo", "mongodb":
 		uri := storage.MongoURI
@@ -117,7 +122,7 @@ func initSyncComponents() error {
 	}
 
 	conf.Conf.Storage.Driver = driver
-	syncService = service.NewIssueSyncService(syncStore, conf.Conf.GitHub, conf.Conf.GitHubSync)
+	syncService = service.NewIssueSyncService(syncStore, conf.Conf.GitHub, conf.Conf.GitHubSync, commentStore)
 	if err := syncService.SeedManagedRepos(context.Background(), conf.Conf.GitHubSync.Repos); err != nil {
 		return fmt.Errorf("seed managed repos: %w", err)
 	}
@@ -129,11 +134,15 @@ func initSyncComponents() error {
 	adminGRPC = service.NewIssueSyncAdminGRPCServer(syncStore, syncService, conf.Conf)
 	adminTokenValidator = service.NewRedisAdminTokenStore(conf.Conf)
 	adminAuthGRPC = service.NewAdminAuthGRPCServer(conf.Conf, adminTokenValidator)
-	queryGRPC = service.NewIssueQueryGRPCServer(syncStore)
+	queryGRPC = service.NewIssueQueryGRPCServer(syncStore, commentStore)
 	feedAdminGRPC = service.NewFeedSyncAdminGRPCServer(feedStore, feedSyncService, conf.Conf)
 	feedQueryGRPC = service.NewFeedQueryGRPCServer(feedStore)
 	appLogger.Info("sync components initialized",
 		"storage_driver", driver,
+		"issue_comment_storage_enabled", conf.Conf.IssueCommentStorage.Enabled,
+		"issue_comment_storage_provider", conf.Conf.IssueCommentStorage.Provider,
+		"issue_comment_storage_bucket", conf.Conf.IssueCommentStorage.Bucket,
+		"issue_comment_storage_endpoint", conf.Conf.IssueCommentStorage.Endpoint,
 		"issue_sync_enabled", conf.Conf.GitHubSync.Enabled,
 		"managed_repo_count", len(managedRepos),
 		"managed_repos", managedRepoNames(managedRepos),

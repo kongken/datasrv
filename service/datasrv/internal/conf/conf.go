@@ -18,6 +18,9 @@ type Config struct {
 	// GitHub issue sync job configuration
 	GitHubSync GitHubSyncConfig `yaml:"github_sync" json:"github_sync"`
 
+	// IssueCommentStorage controls where full GitHub issue comments are persisted.
+	IssueCommentStorage IssueCommentStorageConfig `yaml:"issue_comment_storage" json:"issue_comment_storage"`
+
 	// RSS feed sync job configuration
 	FeedSync FeedSyncConfig `yaml:"feed_sync" json:"feed_sync"`
 
@@ -81,6 +84,25 @@ type GitHubSyncConfig struct {
 
 	// RequestTimeoutSeconds controls GitHub API timeout.
 	RequestTimeoutSeconds int `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+}
+
+// IssueCommentStorageConfig stores full GitHub issue comments outside the primary database.
+type IssueCommentStorageConfig struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+
+	// Provider currently supports "s3".
+	Provider string `yaml:"provider" json:"provider"`
+
+	Bucket string `yaml:"bucket" json:"bucket"`
+	Region string `yaml:"region" json:"region"`
+
+	// Endpoint supports S3-compatible object stores such as MinIO.
+	Endpoint string `yaml:"endpoint" json:"endpoint"`
+
+	AccessKeyID     string `yaml:"access_key_id" json:"access_key_id"`
+	SecretAccessKey string `yaml:"secret_access_key" json:"secret_access_key"`
+	UsePathStyle    bool   `yaml:"use_path_style" json:"use_path_style"`
+	KeyPrefix       string `yaml:"key_prefix" json:"key_prefix"`
 }
 
 // FeedSourceConfig defines a configured RSS/Atom source.

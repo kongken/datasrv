@@ -13,11 +13,12 @@ import (
 // IssueQueryGRPCServer implements issues.v1.IssueQueryService for user-facing issue queries.
 type IssueQueryGRPCServer struct {
 	issuesv1.UnimplementedIssueQueryServiceServer
-	store dao.SyncStore
+	store        dao.SyncStore
+	commentStore IssueCommentStore
 }
 
-func NewIssueQueryGRPCServer(store dao.SyncStore) *IssueQueryGRPCServer {
-	return &IssueQueryGRPCServer{store: store}
+func NewIssueQueryGRPCServer(store dao.SyncStore, commentStore IssueCommentStore) *IssueQueryGRPCServer {
+	return &IssueQueryGRPCServer{store: store, commentStore: commentStore}
 }
 
 func (s *IssueQueryGRPCServer) ListIssues(ctx context.Context, req *issuesv1.ListIssuesRequest) (*issuesv1.ListIssuesResponse, error) {
@@ -91,7 +92,16 @@ func (s *IssueQueryGRPCServer) GetIssue(ctx context.Context, req *issuesv1.GetIs
 		return nil, status.Error(codes.NotFound, "issue not found")
 	}
 
-	return &issuesv1.GetIssueResponse{Issue: toProtoIssue(rows[0])}, nil
+	issue := toProtoIssue(rows[0])
+	if s.commentStore != nil && rows[0].Comments > 0 {
+		comments, err := s.commentStore.LoadComments(ctx, rows[0].Repo, rows[0].IssueID, rows[0].Number)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "load issue comments: %v", err)
+		}
+		issue.CommentsDetail = toProtoIssueComments(comments)
+	}
+
+	return &issuesv1.GetIssueResponse{Issue: issue}, nil
 }
 
 func toProtoIssue(in dao.SyncedIssue) *issuesv1.Issue {
@@ -127,6 +137,30 @@ func toProtoIssue(in dao.SyncedIssue) *issuesv1.Issue {
 	}
 	if in.ClosedAt != nil {
 		out.ClosedAt = timestamppb.New(*in.ClosedAt)
+	}
+	return out
+}
+
+func toProtoIssueComments(in []dao.IssueComment) []*issuesv1.IssueComment {
+	out := make([]*issuesv1.IssueComment, 0, len(in))
+	for _, comment := range in {
+		item := &issuesv1.IssueComment{
+			Id:      comment.ID,
+			Body:    comment.Body,
+			HtmlUrl: comment.HTMLURL,
+			User: &issuesv1.User{
+				Login:     comment.UserLogin,
+				AvatarUrl: comment.UserAvatarURL,
+				HtmlUrl:   comment.UserURL,
+			},
+		}
+		if !comment.CreatedAt.IsZero() {
+			item.CreatedAt = timestamppb.New(comment.CreatedAt)
+		}
+		if !comment.UpdatedAt.IsZero() {
+			item.UpdatedAt = timestamppb.New(comment.UpdatedAt)
+		}
+		out = append(out, item)
 	}
 	return out
 }

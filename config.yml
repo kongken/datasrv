@@ -21,6 +21,17 @@ github_sync:
   max_pages_per_run: 10
   request_timeout_seconds: 15
 
+issue_comment_storage:
+  enabled: false
+  provider: "s3"
+  bucket: "datasrv-issue-comments"
+  region: "us-east-1"
+  endpoint: ""
+  access_key_id: ""
+  secret_access_key: ""
+  use_path_style: false
+  key_prefix: "datasrv"
+
 feed_sync:
   enabled: true
   interval_seconds: 300
