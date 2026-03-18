@@ -82,7 +82,7 @@ type GitHubSyncConfig struct {
 	// MaxPagesPerRun bounds per-repo work in one run.
 	MaxPagesPerRun int `yaml:"max_pages_per_run" json:"max_pages_per_run"`
 
-	// RequestTimeoutSeconds controls GitHub API timeout.
+	// RequestTimeoutSeconds controls the timeout for each outbound GitHub/S3 request.
 	RequestTimeoutSeconds int `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -15,6 +16,8 @@ import (
 	"github.com/kongken/datasrv/service/datasrv/internal/dao"
 	"golang.org/x/oauth2"
 )
+
+var issueSyncLogger = slog.Default().With("component", "datasrv.issue_sync")
 
 // GitHubIssueClient is the external client contract used by sync flow.
 type GitHubIssueClient interface {
@@ -96,6 +99,10 @@ func normalizeSyncConfig(in conf.GitHubSyncConfig) conf.GitHubSyncConfig {
 		in.RequestTimeoutSeconds = 15
 	}
 	return in
+}
+
+func requestTimeout(ctx context.Context, cfg conf.GitHubSyncConfig) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, time.Duration(cfg.RequestTimeoutSeconds)*time.Second)
 }
 
 func normalizeManagedRepos(repos []string) []string {
@@ -240,11 +247,15 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 		return result
 	}
 
-	requestCtx, cancel := context.WithTimeout(ctx, time.Duration(cfg.RequestTimeoutSeconds)*time.Second)
-	defer cancel()
-
 	maxSeenUpdate := cp.LastIssueUpdatedAt
 	currentPage := 1
+	issueSyncLogger.Info("issue sync repo started",
+		"repo", repo,
+		"timeout_seconds", cfg.RequestTimeoutSeconds,
+		"page_size", cfg.PageSize,
+		"max_pages_per_run", cfg.MaxPagesPerRun,
+		"last_issue_updated_at", cp.LastIssueUpdatedAt,
+	)
 	for page := 0; page < cfg.MaxPagesPerRun; page++ {
 		opts := &github.IssueListByRepoOptions{
 			State:       "all",
@@ -254,8 +265,16 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 			ListOptions: github.ListOptions{Page: currentPage, PerPage: cfg.PageSize},
 		}
 
-		issues, resp, fetchErr := s.listByRepoWithRetry(requestCtx, owner, name, opts)
+		pageStartedAt := time.Now()
+		issues, resp, fetchErr := s.listByRepoWithRetry(ctx, cfg, owner, name, opts)
 		if fetchErr != nil {
+			issueSyncLogger.Error("issue sync list issues failed",
+				"repo", repo,
+				"page", currentPage,
+				"duration_ms", time.Since(pageStartedAt).Milliseconds(),
+				"timeout_seconds", cfg.RequestTimeoutSeconds,
+				"error", fetchErr,
+			)
 			result.Err = fetchErr.Error()
 			_ = s.store.SaveRepoCheckpoint(ctx, dao.Checkpoint{
 				Repo:               repo,
@@ -267,14 +286,38 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 			return result
 		}
 		if len(issues) == 0 {
+			issueSyncLogger.Info("issue sync page empty",
+				"repo", repo,
+				"page", currentPage,
+				"duration_ms", time.Since(pageStartedAt).Milliseconds(),
+			)
 			break
 		}
+		issueSyncLogger.Info("issue sync page fetched",
+			"repo", repo,
+			"page", currentPage,
+			"issue_count", len(issues),
+			"duration_ms", time.Since(pageStartedAt).Milliseconds(),
+			"next_page", func() int {
+				if resp == nil {
+					return 0
+				}
+				return resp.NextPage
+			}(),
+		)
 
 		normalized := make([]dao.SyncedIssue, 0, len(issues))
 		for _, it := range issues {
 			record := toSyncedIssue(repo, it)
 			if s.commentStore != nil {
-				if err := s.syncIssueComments(requestCtx, repo, owner, name, &record); err != nil {
+				if err := s.syncIssueComments(ctx, cfg, repo, owner, name, &record); err != nil {
+					issueSyncLogger.Error("issue sync comments failed",
+						"repo", repo,
+						"issue_number", record.Number,
+						"issue_id", record.IssueID,
+						"comment_count", record.Comments,
+						"error", err,
+					)
 					result.Err = err.Error()
 					_ = s.store.SaveRepoCheckpoint(ctx, dao.Checkpoint{
 						Repo:               repo,
@@ -293,8 +336,16 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 			}
 		}
 
+		persistStartedAt := time.Now()
 		persisted, persistErr := s.store.UpsertIssues(ctx, repo, normalized)
 		if persistErr != nil {
+			issueSyncLogger.Error("issue sync persist failed",
+				"repo", repo,
+				"page", currentPage,
+				"issue_count", len(normalized),
+				"duration_ms", time.Since(persistStartedAt).Milliseconds(),
+				"error", persistErr,
+			)
 			result.Err = persistErr.Error()
 			_ = s.store.SaveRepoCheckpoint(ctx, dao.Checkpoint{
 				Repo:               repo,
@@ -306,6 +357,13 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 			return result
 		}
 		result.Persisted += int32(persisted)
+		issueSyncLogger.Info("issue sync page persisted",
+			"repo", repo,
+			"page", currentPage,
+			"issue_count", len(normalized),
+			"persisted", persisted,
+			"duration_ms", time.Since(persistStartedAt).Milliseconds(),
+		)
 
 		if resp == nil || resp.NextPage == 0 {
 			break
@@ -324,27 +382,49 @@ func (s *IssueSyncService) syncOneRepo(ctx context.Context, cfg conf.GitHubSyncC
 	return result
 }
 
-func (s *IssueSyncService) syncIssueComments(ctx context.Context, repo, owner, name string, issue *dao.SyncedIssue) error {
+func (s *IssueSyncService) syncIssueComments(ctx context.Context, cfg conf.GitHubSyncConfig, repo, owner, name string, issue *dao.SyncedIssue) error {
 	if issue.Comments <= 0 {
 		return nil
 	}
 
-	comments, err := s.fetchIssueComments(ctx, owner, name, int(issue.Number))
+	commentFetchStartedAt := time.Now()
+	comments, err := s.fetchIssueComments(ctx, cfg, owner, name, int(issue.Number))
 	if err != nil {
 		return err
 	}
+	issueSyncLogger.Info("issue sync comments fetched",
+		"repo", repo,
+		"issue_number", issue.Number,
+		"issue_id", issue.IssueID,
+		"comment_count", len(comments),
+		"duration_ms", time.Since(commentFetchStartedAt).Milliseconds(),
+	)
 
-	if err := s.commentStore.SaveComments(ctx, repo, issue.IssueID, issue.Number, comments); err != nil {
+	saveCtx, cancel := requestTimeout(ctx, cfg)
+	defer cancel()
+
+	saveStartedAt := time.Now()
+	if err := s.commentStore.SaveComments(saveCtx, repo, issue.IssueID, issue.Number, comments); err != nil {
 		return fmt.Errorf("save issue comments for %s#%d: %w", repo, issue.Number, err)
 	}
+	issueSyncLogger.Info("issue sync comments stored",
+		"repo", repo,
+		"issue_number", issue.Number,
+		"issue_id", issue.IssueID,
+		"comment_count", len(comments),
+		"duration_ms", time.Since(saveStartedAt).Milliseconds(),
+		"timeout_seconds", cfg.RequestTimeoutSeconds,
+	)
 	return nil
 }
 
-func (s *IssueSyncService) fetchIssueComments(ctx context.Context, owner, repo string, issueNumber int) ([]dao.IssueComment, error) {
+func (s *IssueSyncService) fetchIssueComments(ctx context.Context, cfg conf.GitHubSyncConfig, owner, repo string, issueNumber int) ([]dao.IssueComment, error) {
 	currentPage := 1
 	out := make([]dao.IssueComment, 0)
 	for {
-		items, resp, err := s.client.ListComments(ctx, owner, repo, issueNumber, &github.IssueListCommentsOptions{
+		pageStartedAt := time.Now()
+		requestCtx, cancel := requestTimeout(ctx, cfg)
+		items, resp, err := s.client.ListComments(requestCtx, owner, repo, issueNumber, &github.IssueListCommentsOptions{
 			Sort:      github.Ptr("created"),
 			Direction: github.Ptr("asc"),
 			ListOptions: github.ListOptions{
@@ -352,9 +432,23 @@ func (s *IssueSyncService) fetchIssueComments(ctx context.Context, owner, repo s
 				PerPage: 100,
 			},
 		})
+		cancel()
 		if err != nil {
 			return nil, fmt.Errorf("list issue comments for %s/%s#%d: %w", owner, repo, issueNumber, err)
 		}
+		issueSyncLogger.Info("issue sync comments page fetched",
+			"repo", owner+"/"+repo,
+			"issue_number", issueNumber,
+			"page", currentPage,
+			"comment_count", len(items),
+			"duration_ms", time.Since(pageStartedAt).Milliseconds(),
+			"next_page", func() int {
+				if resp == nil {
+					return 0
+				}
+				return resp.NextPage
+			}(),
+		)
 
 		for _, item := range items {
 			out = append(out, toIssueComment(item))
@@ -368,14 +462,33 @@ func (s *IssueSyncService) fetchIssueComments(ctx context.Context, owner, repo s
 	return out, nil
 }
 
-func (s *IssueSyncService) listByRepoWithRetry(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error) {
+func (s *IssueSyncService) listByRepoWithRetry(ctx context.Context, cfg conf.GitHubSyncConfig, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error) {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		issues, resp, err := s.client.ListByRepo(ctx, owner, repo, opts)
+		attemptStartedAt := time.Now()
+		requestCtx, cancel := requestTimeout(ctx, cfg)
+		issues, resp, err := s.client.ListByRepo(requestCtx, owner, repo, opts)
+		cancel()
 		if err == nil {
+			issueSyncLogger.Info("issue sync list issues request succeeded",
+				"repo", owner+"/"+repo,
+				"page", opts.ListOptions.Page,
+				"attempt", attempt+1,
+				"issue_count", len(issues),
+				"duration_ms", time.Since(attemptStartedAt).Milliseconds(),
+				"timeout_seconds", cfg.RequestTimeoutSeconds,
+			)
 			return issues, resp, nil
 		}
 		lastErr = err
+		issueSyncLogger.Warn("issue sync list issues request failed",
+			"repo", owner+"/"+repo,
+			"page", opts.ListOptions.Page,
+			"attempt", attempt+1,
+			"duration_ms", time.Since(attemptStartedAt).Milliseconds(),
+			"timeout_seconds", cfg.RequestTimeoutSeconds,
+			"error", err,
+		)
 		select {
 		case <-ctx.Done():
 			return nil, nil, ctx.Err()

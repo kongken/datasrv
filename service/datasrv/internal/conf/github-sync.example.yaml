@@ -17,7 +17,7 @@ github_sync:
   interval_seconds: 300
   page_size: 100
   max_pages_per_run: 10
-  request_timeout_seconds: 15
+  request_timeout_seconds: 60
 
 ---
 # Option B: MongoDB
@@ -37,4 +37,4 @@ github_sync:
   interval_seconds: 300
   page_size: 100
   max_pages_per_run: 10
-  request_timeout_seconds: 15
+  request_timeout_seconds: 60
