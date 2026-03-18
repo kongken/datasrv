@@ -96,6 +96,27 @@ func TestRegisterHTTPRoutesAllowsAdminLoginWithoutToken(t *testing.T) {
 	}
 }
 
+func TestRegisterHTTPRoutesResetsNoRouteStatusBeforeGatewaySuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/auth:login", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if rec.Body.String() != `{"success":true}` {
+		t.Fatalf("body = %q, want %q", rec.Body.String(), `{"success":true}`)
+	}
+}
+
 func TestRegisterHTTPRoutesAllowsAdminEndpointsWithValidBearerToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

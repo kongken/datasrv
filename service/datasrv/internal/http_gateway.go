@@ -64,22 +64,29 @@ func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.Admi
 	adminProtected := adminAuthMiddleware(tokens, wrapped)
 	r.NoRoute(func(c *gin.Context) {
 		if isAdminHTTPPath(c.Request.URL.Path) {
-			adminProtected(c)
+			forwardGateway(c, adminProtected)
 			return
 		}
-		wrapped(c)
+		forwardGateway(c, wrapped)
 	})
 	r.NoMethod(func(c *gin.Context) {
 		if isAdminHTTPPath(c.Request.URL.Path) {
-			adminProtected(c)
+			forwardGateway(c, adminProtected)
 			return
 		}
-		wrapped(c)
+		forwardGateway(c, wrapped)
 	})
 }
 
 func setupHTTPRouter(r *gin.Engine) {
 	registerHTTPRoutes(r, gatewayHandler, adminTokenValidator)
+}
+
+func forwardGateway(c *gin.Context, next gin.HandlerFunc) {
+	// Gin enters custom NoRoute/NoMethod handlers with a preset 404 status.
+	// Reset it so downstream gateway handlers can default to 200 on success.
+	c.Status(http.StatusOK)
+	next(c)
 }
 
 func adminAuthMiddleware(tokens service.AdminTokenStore, next gin.HandlerFunc) gin.HandlerFunc {
