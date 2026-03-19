@@ -6,7 +6,6 @@ export function SiteShell() {
       <header className="border-b border-border/70 bg-background/75 backdrop-blur">
         <div className="container flex flex-col gap-5 py-8 md:flex-row md:items-end md:justify-between">
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">Datasrv Front</p>
             <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
               <Link to="/" className="underline-offset-4 hover:underline">
                 BetaHub
