@@ -2,7 +2,7 @@ import { apiRequest } from "@/lib/api/client";
 import type { Issue, ListIssuesResponse } from "@/lib/api/types";
 
 export function listIssues(params: {
-  repo: string;
+  repo?: string;
   state?: string;
   page?: number;
   pageSize?: number;

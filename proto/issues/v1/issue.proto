@@ -60,6 +60,9 @@ message Issue {
 
   // Full comments loaded from object storage on detail reads.
   repeated IssueComment comments_detail = 17;
+
+  // Source repository in owner/repo format.
+  string repo = 18;
 }
 
 // User 表示 GitHub 用户

@@ -321,6 +321,8 @@ func (m *Issue) validate(all bool) error {
 
 	}
 
+	// no validation rules for Repo
+
 	if len(errors) > 0 {
 		return IssueMultiError(errors)
 	}

@@ -35,6 +35,9 @@ func TestIssueQueryGRPCServer_ListIssues(t *testing.T) {
 	if resp.Issues[0].GetAiSummary() != "one summary" {
 		t.Fatalf("ai_summary = %q, want one summary", resp.Issues[0].GetAiSummary())
 	}
+	if resp.Issues[0].GetRepo() != "o/r" {
+		t.Fatalf("repo = %q, want o/r", resp.Issues[0].GetRepo())
+	}
 }
 
 func TestIssueQueryGRPCServer_GetIssue(t *testing.T) {
@@ -62,8 +65,28 @@ func TestIssueQueryGRPCServer_GetIssueValidation(t *testing.T) {
 	if _, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{Repo: "o/r"}); err == nil {
 		t.Fatalf("GetIssue() should fail when selector missing")
 	}
-	if _, err := srv.ListIssues(context.Background(), &issuesv1.ListIssuesRequest{}); err == nil {
-		t.Fatalf("ListIssues() should fail when repo missing")
+	if _, err := srv.ListIssues(context.Background(), &issuesv1.ListIssuesRequest{}); err != nil {
+		t.Fatalf("ListIssues() should allow empty repo filter: %v", err)
+	}
+}
+
+func TestIssueQueryGRPCServer_ListIssuesAcrossRepos(t *testing.T) {
+	store := newFakeSyncStore()
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/r1", []dao.SyncedIssue{
+		{Repo: "o/r1", IssueID: 1, Number: 1, Title: "one", State: "open", Author: "alice", UpdatedAt: now},
+	})
+	_, _ = store.UpsertIssues(context.Background(), "o/r2", []dao.SyncedIssue{
+		{Repo: "o/r2", IssueID: 2, Number: 2, Title: "two", State: "open", Author: "bob", UpdatedAt: now.Add(time.Minute)},
+	})
+
+	srv := NewIssueQueryGRPCServer(store, nil)
+	resp, err := srv.ListIssues(context.Background(), &issuesv1.ListIssuesRequest{State: "open", Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatalf("ListIssues() error = %v", err)
+	}
+	if len(resp.Issues) != 2 {
+		t.Fatalf("issues len = %d, want 2", len(resp.Issues))
 	}
 }
 

@@ -22,10 +22,6 @@ func NewIssueQueryGRPCServer(store dao.SyncStore, commentStore IssueCommentStore
 }
 
 func (s *IssueQueryGRPCServer) ListIssues(ctx context.Context, req *issuesv1.ListIssuesRequest) (*issuesv1.ListIssuesResponse, error) {
-	if req.GetRepo() == "" {
-		return nil, status.Error(codes.InvalidArgument, "repo is required")
-	}
-
 	page := req.GetPage()
 	if page <= 0 {
 		page = 1
@@ -119,6 +115,7 @@ func toProtoIssue(in dao.SyncedIssue) *issuesv1.Issue {
 		Id:        in.IssueID,
 		Number:    in.Number,
 		Title:     in.Title,
+		Repo:      in.Repo,
 		Body:      in.Body,
 		State:     in.State,
 		User:      &issuesv1.User{Login: in.Author},

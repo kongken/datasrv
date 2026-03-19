@@ -375,25 +375,21 @@ function Label({ className, ...props }) {
 //#region src/routes/issues-home-page.tsx
 function IssuesHomePage() {
 	const [searchParams, setSearchParams] = useSearchParams({
-		repo: "golang/go",
 		state: "open",
 		page: "1",
 		pageSize: "20"
 	});
-	const repo = searchParams.get("repo") ?? "golang/go";
 	const state = searchParams.get("state") ?? "open";
 	const page = Number(searchParams.get("page") ?? "1");
 	const pageSize = Number(searchParams.get("pageSize") ?? "20");
 	const query = useQuery({
 		queryKey: [
 			"public-issues",
-			repo,
 			state,
 			page,
 			pageSize
 		],
 		queryFn: () => listIssues({
-			repo,
 			state,
 			page,
 			pageSize
@@ -402,68 +398,26 @@ function IssuesHomePage() {
 	return /* @__PURE__ */ jsxs("div", {
 		className: "space-y-6",
 		children: [
-			/* @__PURE__ */ jsxs("section", {
-				className: "grid gap-4 xl:grid-cols-[1.3fr_0.7fr]",
-				children: [/* @__PURE__ */ jsx(Card, {
-					className: "overflow-hidden",
-					children: /* @__PURE__ */ jsxs(CardHeader, {
-						className: "relative space-y-4",
-						children: [
-							/* @__PURE__ */ jsx("div", { className: "absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" }),
-							/* @__PURE__ */ jsxs("div", {
-								className: "space-y-3",
-								children: [
-									/* @__PURE__ */ jsx("p", {
-										className: "text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground",
-										children: "Public Discovery"
-									}),
-									/* @__PURE__ */ jsx(CardTitle, {
-										className: "text-3xl md:text-4xl",
-										children: "把同步后的 Issue，做成可以直接访问的用户首页"
-									}),
-									/* @__PURE__ */ jsx(CardDescription, {
-										className: "max-w-2xl text-sm leading-7",
-										children: "默认展示 `golang/go` 的公开 issue。你也可以切换到任意已经同步进 datasrv 的仓库， 用一个更适合阅读和检索的界面浏览标题、摘要、标签和评论数。"
-									})
-								]
-							}),
-							/* @__PURE__ */ jsxs("div", {
-								className: "flex flex-wrap gap-2 text-xs text-muted-foreground",
-								children: [
-									/* @__PURE__ */ jsx("span", {
-										className: "rounded-full border border-border/70 bg-background/70 px-3 py-1",
-										children: "SSR 首屏可见"
-									}),
-									/* @__PURE__ */ jsx("span", {
-										className: "rounded-full border border-border/70 bg-background/70 px-3 py-1",
-										children: "支持详情页评论归档"
-									}),
-									/* @__PURE__ */ jsx("span", {
-										className: "rounded-full border border-border/70 bg-background/70 px-3 py-1",
-										children: "按 repo / state / page 检索"
-									})
-								]
-							})
-						]
-					})
-				}), /* @__PURE__ */ jsxs(Card, {
+			/* @__PURE__ */ jsx("section", {
+				className: "grid gap-4 xl:grid-cols-[1.1fr_0.9fr]",
+				children: /* @__PURE__ */ jsxs(Card, {
 					className: "bg-primary text-primary-foreground",
 					children: [/* @__PURE__ */ jsxs(CardHeader, { children: [/* @__PURE__ */ jsx(CardTitle, {
 						className: "text-xl",
-						children: "当前筛选"
+						children: "公开 Issue 首页"
 					}), /* @__PURE__ */ jsx(CardDescription, {
 						className: "text-primary-foreground/78",
-						children: "这组参数会直接反映在 URL 上，方便分享和被搜索引擎索引。"
+						children: "默认直接显示所有已同步仓库的 issues，只保留状态和分页两个公开筛选条件。"
 					})] }), /* @__PURE__ */ jsxs(CardContent, {
 						className: "grid gap-3 text-sm",
 						children: [/* @__PURE__ */ jsxs("div", {
 							className: "rounded-xl bg-primary-foreground/10 px-4 py-3",
 							children: [/* @__PURE__ */ jsx("p", {
 								className: "text-[11px] uppercase tracking-[0.2em] text-primary-foreground/70",
-								children: "Repo"
+								children: "Scope"
 							}), /* @__PURE__ */ jsx("p", {
 								className: "mt-1 font-medium",
-								children: repo
+								children: "All Synced Repositories"
 							})]
 						}), /* @__PURE__ */ jsxs("div", {
 							className: "grid grid-cols-2 gap-3",
@@ -488,38 +442,25 @@ function IssuesHomePage() {
 							})]
 						})]
 					})]
-				})]
+				})
 			}),
 			/* @__PURE__ */ jsxs(Card, {
 				className: "overflow-hidden",
 				children: [/* @__PURE__ */ jsxs(CardHeader, { children: [/* @__PURE__ */ jsx(CardTitle, {
 					className: "text-2xl",
 					children: "筛选与检索"
-				}), /* @__PURE__ */ jsx(CardDescription, { children: "修改参数后会重新请求公开接口，并生成对应的 SSR 页面。" })] }), /* @__PURE__ */ jsx(CardContent, { children: /* @__PURE__ */ jsxs("form", {
-					className: "grid gap-4 md:grid-cols-[1.5fr_0.8fr_0.7fr_auto]",
+				}), /* @__PURE__ */ jsx(CardDescription, { children: "修改参数后会重新请求公开接口，并生成新的 SSR 页面。" })] }), /* @__PURE__ */ jsx(CardContent, { children: /* @__PURE__ */ jsxs("form", {
+					className: "grid gap-4 md:grid-cols-[0.9fr_0.7fr_auto]",
 					onSubmit: (event) => {
 						event.preventDefault();
 						const formData = new FormData(event.currentTarget);
 						setSearchParams({
-							repo: String(formData.get("repo") ?? "golang/go"),
 							state: String(formData.get("state") ?? "open"),
 							page: "1",
 							pageSize: String(formData.get("pageSize") ?? "20")
 						});
 					},
 					children: [
-						/* @__PURE__ */ jsxs("div", {
-							className: "space-y-2",
-							children: [/* @__PURE__ */ jsx(Label, {
-								htmlFor: "repo",
-								children: "Repo"
-							}), /* @__PURE__ */ jsx(Input, {
-								id: "repo",
-								name: "repo",
-								defaultValue: repo,
-								placeholder: "owner/repo"
-							})]
-						}),
 						/* @__PURE__ */ jsxs("div", {
 							className: "space-y-2",
 							children: [/* @__PURE__ */ jsx(Label, {
@@ -595,7 +536,7 @@ function IssuesHomePage() {
 									}),
 									/* @__PURE__ */ jsx("span", {
 										className: "text-xs uppercase tracking-[0.22em] text-muted-foreground",
-										children: repo
+										children: issue.repo
 									}),
 									/* @__PURE__ */ jsxs("span", {
 										className: "text-xs text-muted-foreground",
@@ -604,14 +545,18 @@ function IssuesHomePage() {
 								]
 							}), /* @__PURE__ */ jsxs("div", {
 								className: "space-y-1",
-								children: [/* @__PURE__ */ jsxs("h2", {
+								children: [/* @__PURE__ */ jsx("h2", {
 									className: "text-xl font-semibold tracking-tight",
-									children: [
-										"#",
-										issue.number,
-										" ",
-										issue.title
-									]
+									children: /* @__PURE__ */ jsxs(Link, {
+										to: `/issues/detail?repo=${encodeURIComponent(issue.repo)}&number=${issue.number}`,
+										className: "underline-offset-4 hover:underline",
+										children: [
+											"#",
+											issue.number,
+											" ",
+											issue.title
+										]
+									})
 								}), /* @__PURE__ */ jsxs("p", {
 									className: "text-sm text-muted-foreground",
 									children: [
@@ -622,7 +567,7 @@ function IssuesHomePage() {
 								})]
 							})]
 						}), /* @__PURE__ */ jsxs(Link, {
-							to: `/issues/detail?repo=${encodeURIComponent(repo)}&number=${issue.number}`,
+							to: `/issues/detail?repo=${encodeURIComponent(issue.repo)}&number=${issue.number}`,
 							className: "inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
 							children: ["查看详情", /* @__PURE__ */ jsx(ArrowRight, { className: "h-4 w-4" })]
 						})]
@@ -672,7 +617,7 @@ function IssuesHomePage() {
 					children: "这个筛选条件下没有可展示的 issues"
 				}), /* @__PURE__ */ jsx("p", {
 					className: "mt-2 text-sm text-muted-foreground",
-					children: "可以试试切换到 `all`，或者换一个已经同步过的仓库。"
+					children: "可以试试切换到 `all`、`open` 或 `closed`。"
 				})]
 			}) }) : null,
 			query.data ? /* @__PURE__ */ jsxs("div", {
@@ -691,7 +636,6 @@ function IssuesHomePage() {
 						variant: "outline",
 						disabled: page <= 1,
 						onClick: () => setSearchParams({
-							repo,
 							state,
 							page: String(Math.max(page - 1, 1)),
 							pageSize: String(pageSize)
@@ -701,7 +645,6 @@ function IssuesHomePage() {
 						variant: "outline",
 						disabled: !query.data.hasNext,
 						onClick: () => setSearchParams({
-							repo,
 							state,
 							page: String(page + 1),
 							pageSize: String(pageSize)
@@ -759,20 +702,17 @@ async function render({ url, apiBaseUrl }) {
 	const requestURL = new URL(url, "http://datasrv-front.local");
 	const queryClient = new QueryClient();
 	if (requestURL.pathname === "/") {
-		const repo = requestURL.searchParams.get("repo") ?? "golang/go";
 		const state = requestURL.searchParams.get("state") ?? "open";
 		const page = Number(requestURL.searchParams.get("page") ?? "1");
 		const pageSize = Number(requestURL.searchParams.get("pageSize") ?? "20");
 		await queryClient.prefetchQuery({
 			queryKey: [
 				"public-issues",
-				repo,
 				state,
 				page,
 				pageSize
 			],
 			queryFn: () => listIssues({
-				repo,
 				state,
 				page,
 				pageSize
@@ -799,7 +739,6 @@ async function render({ url, apiBaseUrl }) {
 		requestURL,
 		issues: queryClient.getQueryData([
 			"public-issues",
-			requestURL.searchParams.get("repo") ?? "golang/go",
 			requestURL.searchParams.get("state") ?? "open",
 			Number(requestURL.searchParams.get("page") ?? "1"),
 			Number(requestURL.searchParams.get("pageSize") ?? "20")
@@ -821,7 +760,7 @@ async function render({ url, apiBaseUrl }) {
 	};
 }
 function buildMetadata({ requestURL, issues, issueDetail }) {
-	const repo = requestURL.searchParams.get("repo") ?? "golang/go";
+	const repo = requestURL.searchParams.get("repo") ?? "";
 	const state = requestURL.searchParams.get("state") ?? "open";
 	const canonicalPath = requestURL.pathname + requestURL.search;
 	if (requestURL.pathname === "/issues/detail" && issueDetail) return {
@@ -830,8 +769,8 @@ function buildMetadata({ requestURL, issues, issueDetail }) {
 		canonicalPath
 	};
 	return {
-		title: `${repo} · ${state} issues · Datasrv Issue Hub`,
-		description: issues && issues.issues.length > 0 ? `浏览 ${repo} 的 ${state} issues，当前页共展示 ${issues.issues.length} 条结果。` : `浏览 ${repo} 的 ${state} issues，支持分页、详情和评论归档。`,
+		title: `All Repos · ${state} issues · Datasrv Issue Hub`,
+		description: issues && issues.issues.length > 0 ? `浏览所有已同步仓库的 ${state} issues，当前页共展示 ${issues.issues.length} 条结果。` : `浏览所有已同步仓库的 ${state} issues，支持分页、详情和评论归档。`,
 		canonicalPath
 	};
 }

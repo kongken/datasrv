@@ -14,14 +14,13 @@ export async function render({ url, apiBaseUrl }: RenderOptions) {
   const queryClient = new QueryClient();
 
   if (requestURL.pathname === "/") {
-    const repo = requestURL.searchParams.get("repo") ?? "golang/go";
     const state = requestURL.searchParams.get("state") ?? "open";
     const page = Number(requestURL.searchParams.get("page") ?? "1");
     const pageSize = Number(requestURL.searchParams.get("pageSize") ?? "20");
 
     await queryClient.prefetchQuery({
-      queryKey: ["public-issues", repo, state, page, pageSize],
-      queryFn: () => listIssues({ repo, state, page, pageSize }, { baseUrl: apiBaseUrl }),
+      queryKey: ["public-issues", state, page, pageSize],
+      queryFn: () => listIssues({ state, page, pageSize }, { baseUrl: apiBaseUrl }),
     });
   }
 
@@ -41,7 +40,6 @@ export async function render({ url, apiBaseUrl }: RenderOptions) {
     requestURL,
     issues: queryClient.getQueryData<ListIssuesResponse>([
       "public-issues",
-      requestURL.searchParams.get("repo") ?? "golang/go",
       requestURL.searchParams.get("state") ?? "open",
       Number(requestURL.searchParams.get("page") ?? "1"),
       Number(requestURL.searchParams.get("pageSize") ?? "20"),
@@ -72,7 +70,7 @@ function buildMetadata({
   issues?: ListIssuesResponse;
   issueDetail?: Issue;
 }) {
-  const repo = requestURL.searchParams.get("repo") ?? "golang/go";
+  const repo = requestURL.searchParams.get("repo") ?? "";
   const state = requestURL.searchParams.get("state") ?? "open";
   const canonicalPath = requestURL.pathname + requestURL.search;
 
@@ -87,11 +85,11 @@ function buildMetadata({
   }
 
   return {
-    title: `${repo} · ${state} issues · Datasrv Issue Hub`,
+    title: `All Repos · ${state} issues · Datasrv Issue Hub`,
     description:
       issues && issues.issues.length > 0
-        ? `浏览 ${repo} 的 ${state} issues，当前页共展示 ${issues.issues.length} 条结果。`
-        : `浏览 ${repo} 的 ${state} issues，支持分页、详情和评论归档。`,
+        ? `浏览所有已同步仓库的 ${state} issues，当前页共展示 ${issues.issues.length} 条结果。`
+        : `浏览所有已同步仓库的 ${state} issues，支持分页、详情和评论归档。`,
     canonicalPath,
   };
 }
