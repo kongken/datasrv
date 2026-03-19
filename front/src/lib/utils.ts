@@ -15,7 +15,7 @@ export function formatDateTime(value?: string | null) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

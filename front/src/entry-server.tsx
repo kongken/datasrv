@@ -88,8 +88,8 @@ function buildMetadata({
     title: `All Repos · ${state} issues · Datasrv Issue Hub`,
     description:
       issues && issues.issues.length > 0
-        ? `浏览所有已同步仓库的 ${state} issues，当前页共展示 ${issues.issues.length} 条结果。`
-        : `浏览所有已同步仓库的 ${state} issues，支持分页、详情和评论归档。`,
+        ? `Browse ${state} issues from all synced repositories. This page currently shows ${issues.issues.length} results.`
+        : `Browse ${state} issues from all synced repositories with pagination, detail pages, and archived comments.`,
     canonicalPath,
   };
 }

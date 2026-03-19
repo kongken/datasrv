@@ -30,9 +30,9 @@ export function IssuesHomePage() {
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="bg-primary text-primary-foreground">
           <CardHeader>
-            <CardTitle className="text-xl">公开 Issue 首页</CardTitle>
+            <CardTitle className="text-xl">Public Issue Home</CardTitle>
             <CardDescription className="text-primary-foreground/78">
-              默认直接显示所有已同步仓库的 issues，只保留状态和分页两个公开筛选条件。
+              By default, this page shows issues from all synced repositories with public filters for state and pagination.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
@@ -56,8 +56,8 @@ export function IssuesHomePage() {
 
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle className="text-2xl">筛选与检索</CardTitle>
-          <CardDescription>修改参数后会重新请求公开接口，并生成新的 SSR 页面。</CardDescription>
+          <CardTitle className="text-2xl">Filter and Browse</CardTitle>
+          <CardDescription>Updating the filters refreshes the public API request and renders a new SSR page.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -91,15 +91,15 @@ export function IssuesHomePage() {
             </div>
             <div className="flex items-end">
               <Button type="submit" className="w-full md:w-auto">
-                刷新列表
+                Refresh List
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {query.isLoading ? <p className="text-sm text-muted-foreground">正在加载 issue 列表...</p> : null}
-      {query.error ? <p className="text-sm text-rose-700">加载失败：{query.error.message}</p> : null}
+      {query.isLoading ? <p className="text-sm text-muted-foreground">Loading issues...</p> : null}
+      {query.error ? <p className="text-sm text-rose-700">Failed to load issues: {query.error.message}</p> : null}
 
       <div className="grid gap-4">
         {query.data?.issues.map((issue, index) => (
@@ -121,7 +121,7 @@ export function IssuesHomePage() {
                     </Link>
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    {issue.user?.login ?? "unknown"} 创建 · 最近更新于 {formatDateTime(issue.updatedAt)}
+                    {issue.user?.login ?? "unknown"} created this issue · updated {formatDateTime(issue.updatedAt)}
                   </p>
                 </div>
               </div>
@@ -130,13 +130,13 @@ export function IssuesHomePage() {
                 to={`/issues/detail?repo=${encodeURIComponent(issue.repo)}&number=${issue.number}`}
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
               >
-                查看详情
+                View Details
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-7 text-muted-foreground">
-                {truncate(issue.aiSummary || issue.body || "暂无摘要", 220)}
+                {truncate(issue.aiSummary || issue.body || "No summary available.", 220)}
               </p>
 
               <div className="flex flex-wrap gap-2">
@@ -147,18 +147,18 @@ export function IssuesHomePage() {
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-muted-foreground">没有标签</span>
+                  <span className="text-sm text-muted-foreground">No labels</span>
                 )}
               </div>
 
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
                   <MessageSquareText className="h-4 w-4" />
-                  {issue.comments} 条评论
+                  {issue.comments} comments
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <Clock3 className="h-4 w-4" />
-                  创建于 {formatDateTime(issue.createdAt)}
+                  Created {formatDateTime(issue.createdAt)}
                 </span>
               </div>
             </CardContent>
@@ -169,8 +169,8 @@ export function IssuesHomePage() {
       {query.data && query.data.issues.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center">
-            <p className="text-lg font-medium">这个筛选条件下没有可展示的 issues</p>
-            <p className="mt-2 text-sm text-muted-foreground">可以试试切换到 `all`、`open` 或 `closed`。</p>
+            <p className="text-lg font-medium">No issues match the current filters.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Try switching to `all`, `open`, or `closed`.</p>
           </CardContent>
         </Card>
       ) : null}
@@ -192,7 +192,7 @@ export function IssuesHomePage() {
                 })
               }
             >
-              上一页
+              Previous
             </Button>
             <Button
               variant="outline"
@@ -205,7 +205,7 @@ export function IssuesHomePage() {
                 })
               }
             >
-              下一页
+              Next
             </Button>
           </div>
         </div>
