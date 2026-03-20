@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, MessageSquareQuote } from "lucide-react";
+import { MessageSquareQuote } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getIssue } from "@/lib/api/issues";
 import { formatDateTime } from "@/lib/utils";
@@ -34,12 +33,6 @@ export function IssueDetailPage() {
             {repo ? `${repo} · ` : ""}Issue Details
           </h2>
         </div>
-        {issue?.htmlUrl ? (
-          <Button variant="outline" onClick={() => window.open(issue.htmlUrl, "_blank", "noopener,noreferrer")}>
-            Open on GitHub
-            <ExternalLink className="ml-2 h-4 w-4" />
-          </Button>
-        ) : null}
       </div>
 
       {!repo || number <= 0 ? <p className="text-sm text-rose-700">Missing `repo` or `number` parameter.</p> : null}
