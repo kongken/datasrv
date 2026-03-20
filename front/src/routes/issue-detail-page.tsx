@@ -1,20 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { MessageSquareQuote } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getIssue } from "@/lib/api/issues";
 import { formatDateTime } from "@/lib/utils";
 
 export function IssueDetailPage() {
-  const [searchParams] = useSearchParams();
-  const repo = searchParams.get("repo") ?? "";
-  const number = Number(searchParams.get("number") ?? "0");
+  const { id } = useParams();
+  const issueId = Number(id ?? "0");
 
   const query = useQuery({
-    queryKey: ["public-issue-detail", repo, number],
-    queryFn: () => getIssue({ repo, number }),
-    enabled: Boolean(repo && number > 0),
+    queryKey: ["public-issue-detail", issueId],
+    queryFn: () => getIssue({ issueId }),
+    enabled: issueId > 0,
   });
 
   const issue = query.data?.issue;
@@ -23,19 +22,16 @@ export function IssueDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-2">
-          <Link
-            to={`/?repo=${encodeURIComponent(repo)}`}
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-          >
+          <Link to="/" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
             Back to List
           </Link>
           <h2 className="text-3xl font-semibold tracking-tight">
-            {repo ? `${repo} · ` : ""}Issue Details
+            {issue?.repo ? `${issue.repo} · ` : ""}Issue Details
           </h2>
         </div>
       </div>
 
-      {!repo || number <= 0 ? <p className="text-sm text-rose-700">Missing `repo` or `number` parameter.</p> : null}
+      {issueId <= 0 ? <p className="text-sm text-rose-700">Missing valid issue `id` parameter.</p> : null}
       {query.isLoading ? <p className="text-sm text-muted-foreground">Loading issue details...</p> : null}
       {query.error ? <p className="text-sm text-rose-700">Failed to load issue details: {query.error.message}</p> : null}
 
@@ -46,7 +42,7 @@ export function IssueDetailPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={issue.state === "open" ? "success" : "outline"}>{issue.state}</Badge>
                 <span className="text-sm text-muted-foreground">#{issue.number}</span>
-                <span className="text-sm text-muted-foreground">{repo}</span>
+                <span className="text-sm text-muted-foreground">{issue.repo}</span>
               </div>
               <CardTitle className="text-2xl">{issue.title}</CardTitle>
               <CardDescription>

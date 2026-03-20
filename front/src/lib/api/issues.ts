@@ -14,7 +14,7 @@ export function listIssues(params: {
 }
 
 export function getIssue(
-  params: { repo: string; number?: number; issueId?: number },
+  params: { repo?: string; number?: number; issueId?: number },
   options?: { baseUrl?: string },
 ) {
   return apiRequest<{ issue: Issue }>("/api/v1/issue", {

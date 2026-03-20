@@ -12,6 +12,8 @@ type RenderOptions = {
 export async function render({ url, apiBaseUrl }: RenderOptions) {
   const requestURL = new URL(url, "http://datasrv-front.local");
   const queryClient = new QueryClient();
+  const issueDetailMatch = requestURL.pathname.match(/^\/issues\/(\d+)$/);
+  const issueId = issueDetailMatch ? Number(issueDetailMatch[1]) : 0;
 
   if (requestURL.pathname === "/") {
     const state = requestURL.searchParams.get("state") ?? "open";
@@ -24,18 +26,15 @@ export async function render({ url, apiBaseUrl }: RenderOptions) {
     });
   }
 
-  if (requestURL.pathname === "/issues/detail") {
-    const repo = requestURL.searchParams.get("repo") ?? "";
-    const number = Number(requestURL.searchParams.get("number") ?? "0");
-    if (repo && number > 0) {
-      await queryClient.prefetchQuery({
-        queryKey: ["public-issue-detail", repo, number],
-        queryFn: () => getIssue({ repo, number }, { baseUrl: apiBaseUrl }),
-      });
-    }
+  if (issueId > 0) {
+    await queryClient.prefetchQuery({
+      queryKey: ["public-issue-detail", issueId],
+      queryFn: () => getIssue({ issueId }, { baseUrl: apiBaseUrl }),
+    });
   }
 
   const dehydratedState = dehydrate(queryClient);
+  const issueDetail = queryClient.getQueryData<{ issue: Issue }>(["public-issue-detail", issueId])?.issue;
   const metadata = buildMetadata({
     requestURL,
     issues: queryClient.getQueryData<ListIssuesResponse>([
@@ -44,11 +43,7 @@ export async function render({ url, apiBaseUrl }: RenderOptions) {
       Number(requestURL.searchParams.get("page") ?? "1"),
       Number(requestURL.searchParams.get("pageSize") ?? "20"),
     ]),
-    issueDetail: queryClient.getQueryData<{ issue: Issue }>([
-      "public-issue-detail",
-      requestURL.searchParams.get("repo") ?? "",
-      Number(requestURL.searchParams.get("number") ?? "0"),
-    ])?.issue,
+    issueDetail,
   });
   const appHtml = renderToString(
     <AppProviders dehydratedState={dehydratedState} routerMode="static" location={requestURL.pathname + requestURL.search} />,
@@ -70,14 +65,13 @@ function buildMetadata({
   issues?: ListIssuesResponse;
   issueDetail?: Issue;
 }) {
-  const repo = requestURL.searchParams.get("repo") ?? "";
   const state = requestURL.searchParams.get("state") ?? "open";
   const canonicalPath = requestURL.pathname + requestURL.search;
 
-  if (requestURL.pathname === "/issues/detail" && issueDetail) {
+  if (requestURL.pathname.startsWith("/issues/") && issueDetail) {
     return {
-      title: `${issueDetail.title} · #${issueDetail.number} · ${repo} · Datasrv Issue Hub`,
-      description: (issueDetail.aiSummary || issueDetail.body || `${repo} issue detail`)
+      title: `${issueDetail.title} · #${issueDetail.number} · ${issueDetail.repo} · Datasrv Issue Hub`,
+      description: (issueDetail.aiSummary || issueDetail.body || `${issueDetail.repo} issue detail`)
         .replace(/\s+/g, " ")
         .slice(0, 160),
       canonicalPath,

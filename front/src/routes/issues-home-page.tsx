@@ -114,7 +114,7 @@ export function IssuesHomePage() {
                 <div className="space-y-1">
                   <h2 className="text-xl font-semibold tracking-tight">
                     <Link
-                      to={`/issues/detail?repo=${encodeURIComponent(issue.repo)}&number=${issue.number}`}
+                      to={`/issues/${issue.id}`}
                       className="underline-offset-4 hover:underline"
                     >
                       #{issue.number} {issue.title}
@@ -127,7 +127,7 @@ export function IssuesHomePage() {
               </div>
 
               <Link
-                to={`/issues/detail?repo=${encodeURIComponent(issue.repo)}&number=${issue.number}`}
+                to={`/issues/${issue.id}`}
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 View Details

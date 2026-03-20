@@ -10,7 +10,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<SiteShell />}>
         <Route index element={<IssuesHomePage />} />
-        <Route path="issues/detail" element={<IssueDetailPage />} />
+        <Route path="issues/:id" element={<IssueDetailPage />} />
       </Route>
     </Routes>
   );
