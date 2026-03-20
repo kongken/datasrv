@@ -1,11 +1,42 @@
+import { ChevronDown, MonitorCog } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
-import { ThemeControls } from "@/components/layout/theme-controls";
+import { ThemeControlsPanel } from "@/components/layout/theme-controls";
+import { cn } from "@/lib/utils";
 
 export function SiteShell() {
+  const [panelOpen, setPanelOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!panelOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!panelRef.current?.contains(event.target as Node)) {
+        setPanelOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPanelOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [panelOpen]);
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-border/70 bg-background/75 backdrop-blur">
-        <div className="container flex flex-col gap-5 py-8 xl:flex-row xl:items-end xl:justify-between">
+        <div className="container flex flex-col gap-5 py-8 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-3">
             <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
               <Link to="/" className="underline-offset-4 hover:underline">
@@ -16,18 +47,41 @@ export function SiteShell() {
               A public issue browsing page for end users, with synced GitHub issues filtered by status and pagination.
             </p>
           </div>
-          <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-[auto_auto] xl:min-w-[420px]">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-border/70 bg-card/80 px-4 py-3 shadow-panel">
-                <p className="text-[11px] uppercase tracking-[0.22em]">Rendering</p>
-                <p className="mt-1 font-medium text-foreground">React</p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-card/80 px-4 py-3 shadow-panel">
-                <p className="text-[11px] uppercase tracking-[0.22em]">Data</p>
-                <p className="mt-1 font-medium text-foreground">Synced</p>
+          <div ref={panelRef} className="relative self-start xl:self-start">
+            <button
+              type="button"
+              onClick={() => setPanelOpen((open) => !open)}
+              className="inline-flex items-center gap-3 rounded-full border border-border/80 bg-card/90 px-4 py-3 text-sm font-medium text-foreground shadow-panel transition hover:bg-card"
+              aria-haspopup="dialog"
+              aria-expanded={panelOpen}
+            >
+              <MonitorCog className="h-4 w-4 text-muted-foreground" />
+              Display
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition", panelOpen && "rotate-180")} />
+            </button>
+
+            <div
+              className={cn(
+                "absolute right-0 top-full z-20 mt-3 w-[min(92vw,30rem)] origin-top-right rounded-[1.75rem] border border-border/80 bg-card/95 p-4 shadow-panel backdrop-blur transition",
+                panelOpen
+                  ? "pointer-events-auto translate-y-0 opacity-100"
+                  : "pointer-events-none -translate-y-2 opacity-0",
+              )}
+            >
+              <div className="grid gap-3 md:grid-cols-[0.9fr_0.9fr_1.4fr]">
+                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+                  <p className="text-[11px] uppercase tracking-[0.22em]">Rendering</p>
+                  <p className="mt-1 font-medium text-foreground">React</p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+                  <p className="text-[11px] uppercase tracking-[0.22em]">Data</p>
+                  <p className="mt-1 font-medium text-foreground">Synced</p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
+                  <ThemeControlsPanel inset />
+                </div>
               </div>
             </div>
-            <ThemeControls />
           </div>
         </div>
       </header>

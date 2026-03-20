@@ -9,10 +9,19 @@ const accentOptions: Array<{ value: AccentTheme; label: string }> = [
 ];
 
 export function ThemeControls() {
+  return <ThemeControlsPanel />;
+}
+
+export function ThemeControlsPanel({ inset = false }: { inset?: boolean }) {
   const { mode, accent, setAccent, toggleMode } = useTheme();
 
   return (
-    <div className="rounded-3xl border border-border/70 bg-card/85 p-4 shadow-panel backdrop-blur">
+    <div
+      className={cn(
+        "rounded-3xl border border-border/70 bg-card/85 p-4 shadow-panel backdrop-blur",
+        inset && "border-0 bg-transparent p-0 shadow-none backdrop-blur-0",
+      )}
+    >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <div>
