@@ -24,6 +24,9 @@ type Config struct {
 	// RSS feed sync job configuration
 	FeedSync FeedSyncConfig `yaml:"feed_sync" json:"feed_sync"`
 
+	// IssueSummary controls periodic AI summary generation for synced issues.
+	IssueSummary IssueSummaryConfig `yaml:"issue_summary" json:"issue_summary"`
+
 	// Server configuration
 	Server ServerConfig `yaml:"server" json:"server"`
 
@@ -127,6 +130,42 @@ type FeedSyncConfig struct {
 
 	// Sources seeds feed source definitions into the backing store.
 	Sources []FeedSourceConfig `yaml:"sources" json:"sources"`
+}
+
+// IssueSummaryConfig holds scheduled issue AI summary generation options.
+type IssueSummaryConfig struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+
+	// IntervalSeconds controls scheduler frequency.
+	IntervalSeconds int `yaml:"interval_seconds" json:"interval_seconds"`
+
+	// BatchSize controls how many issues to load per page.
+	BatchSize int `yaml:"batch_size" json:"batch_size"`
+
+	// MaxIssuesPerRun bounds how many issues are scanned in one run.
+	MaxIssuesPerRun int `yaml:"max_issues_per_run" json:"max_issues_per_run"`
+
+	// RequestTimeoutSeconds controls timeout for each model generation request.
+	RequestTimeoutSeconds int `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+
+	// State optionally filters issues by state. Empty means all.
+	State string `yaml:"state" json:"state"`
+
+	// OverwriteExisting controls whether non-empty ai_summary values are regenerated.
+	OverwriteExisting bool `yaml:"overwrite_existing" json:"overwrite_existing"`
+
+	// Provider selects the Genkit provider, such as "openai" or "googleai".
+	Provider string `yaml:"provider" json:"provider"`
+
+	// Model is the provider model id. Short names are expanded with the provider prefix.
+	Model string `yaml:"model" json:"model"`
+
+	// SystemPrompt overrides the default summarization system prompt.
+	SystemPrompt string `yaml:"system_prompt" json:"system_prompt"`
+
+	OpenAIAPIKey  string `yaml:"openai_api_key" json:"openai_api_key"`
+	OpenAIBaseURL string `yaml:"openai_base_url" json:"openai_base_url"`
+	GoogleAPIKey  string `yaml:"google_api_key" json:"google_api_key"`
 }
 
 // ServerConfig holds server configuration

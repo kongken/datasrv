@@ -75,7 +75,17 @@ type Summarizer struct {
 }
 
 // NewSummarizer creates a reusable Genkit-based issue summarizer.
-func NewSummarizer(ctx context.Context, cfg Config) (*Summarizer, error) {
+func NewSummarizer(ctx context.Context, cfg Config) (_ *Summarizer, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if panicErr, ok := r.(error); ok {
+				err = panicErr
+				return
+			}
+			err = fmt.Errorf("init genkit summarizer: %v", r)
+		}
+	}()
+
 	provider := strings.TrimSpace(cfg.Provider)
 	if provider == "" {
 		provider = ProviderOpenAI
