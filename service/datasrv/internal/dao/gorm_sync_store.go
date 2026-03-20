@@ -264,7 +264,10 @@ func (g *GormSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter) 
 	}
 
 	var rows []gormIssue
-	if err := query.Order("updated_at DESC").Find(&rows).Error; err != nil {
+	if err := query.
+		Order("CASE WHEN ai_summary IS NOT NULL AND ai_summary <> '' THEN 0 ELSE 1 END ASC").
+		Order("updated_at DESC").
+		Find(&rows).Error; err != nil {
 		return nil, fmt.Errorf("gorm list issues: %w", err)
 	}
 

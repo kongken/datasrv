@@ -78,7 +78,7 @@ func TestIssueQueryGRPCServer_ListIssuesAcrossRepos(t *testing.T) {
 		{Repo: "o/r1", IssueID: 1, Number: 1, Title: "one", State: "open", Author: "alice", UpdatedAt: now},
 	})
 	_, _ = store.UpsertIssues(context.Background(), "o/r2", []dao.SyncedIssue{
-		{Repo: "o/r2", IssueID: 2, Number: 2, Title: "two", State: "open", Author: "bob", UpdatedAt: now.Add(time.Minute)},
+		{Repo: "o/r2", IssueID: 2, Number: 2, Title: "two", State: "open", Author: "bob", UpdatedAt: now.Add(-time.Minute), AISummary: "priority summary"},
 	})
 
 	srv := NewIssueQueryGRPCServer(store, nil)
@@ -88,6 +88,12 @@ func TestIssueQueryGRPCServer_ListIssuesAcrossRepos(t *testing.T) {
 	}
 	if len(resp.Issues) != 2 {
 		t.Fatalf("issues len = %d, want 2", len(resp.Issues))
+	}
+	if resp.Issues[0].GetRepo() != "o/r2" {
+		t.Fatalf("issues[0].repo = %q, want o/r2 with ai summary prioritized", resp.Issues[0].GetRepo())
+	}
+	if resp.Issues[0].GetAiSummary() == "" {
+		t.Fatalf("issues[0].ai_summary = empty, want summarized issue first")
 	}
 }
 
