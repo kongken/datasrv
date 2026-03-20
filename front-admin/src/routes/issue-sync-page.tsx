@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { PageHeader } from "@/components/layout/page-header";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   getManagedSyncRepos,
   getSyncConfig,
@@ -28,16 +28,26 @@ const syncConfigSchema = z.object({
   requestTimeoutSeconds: z.coerce.number().int().min(1),
 });
 
-const managedReposSchema = z.object({
-  repos: z.string(),
+const managedRepoSchema = z.object({
+  originalRepo: z.string().optional(),
+  repo: z
+    .string()
+    .trim()
+    .min(1, "请输入 owner/repo")
+    .regex(/^[^/\s]+\/[^/\s]+$/, "仓库格式必须为 owner/repo"),
 });
 
 type SyncConfigFormValues = z.infer<typeof syncConfigSchema>;
 type SyncConfigFormInput = z.input<typeof syncConfigSchema>;
-type ManagedReposFormValues = z.infer<typeof managedReposSchema>;
-type ManagedReposFormInput = z.input<typeof managedReposSchema>;
+type ManagedRepoFormValues = z.infer<typeof managedRepoSchema>;
+
+const emptyManagedRepoValues: ManagedRepoFormValues = {
+  originalRepo: "",
+  repo: "",
+};
 
 export function IssueSyncPage() {
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const configQuery = useQuery({
     queryKey: ["issue-sync-config"],
@@ -62,11 +72,9 @@ export function IssueSyncPage() {
       requestTimeoutSeconds: 10,
     },
   });
-  const managedReposForm = useForm<ManagedReposFormInput, unknown, ManagedReposFormValues>({
-    resolver: zodResolver(managedReposSchema),
-    defaultValues: {
-      repos: "",
-    },
+  const managedRepoForm = useForm<ManagedRepoFormValues>({
+    resolver: zodResolver(managedRepoSchema),
+    defaultValues: emptyManagedRepoValues,
   });
 
   useEffect(() => {
@@ -83,13 +91,15 @@ export function IssueSyncPage() {
   }, [configQuery.data, form]);
 
   useEffect(() => {
-    if (!managedReposQuery.data) {
+    if (!selectedRepo) {
+      managedRepoForm.reset(emptyManagedRepoValues);
       return;
     }
-    managedReposForm.reset({
-      repos: managedReposQuery.data.repos.map((item) => item.repo).join("\n"),
+    managedRepoForm.reset({
+      originalRepo: selectedRepo,
+      repo: selectedRepo,
     });
-  }, [managedReposForm, managedReposQuery.data]);
+  }, [managedRepoForm, selectedRepo]);
 
   const syncMutation = useMutation({
     mutationFn: (repo?: string) => triggerIssueSync(repo),
@@ -114,12 +124,9 @@ export function IssueSyncPage() {
     },
   });
   const saveReposMutation = useMutation({
-    mutationFn: (values: ManagedReposFormValues) =>
+    mutationFn: (repos: string[]) =>
       replaceManagedSyncRepos({
-        repos: values.repos
-          .split("\n")
-          .map((repo) => repo.trim())
-          .filter(Boolean),
+        repos,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["issue-managed-repos"] });
@@ -127,6 +134,40 @@ export function IssueSyncPage() {
       await queryClient.invalidateQueries({ queryKey: ["issue-sync-status"] });
     },
   });
+
+  const managedRepos = managedReposQuery.data?.repos ?? [];
+
+  const persistManagedRepos = async (repos: string[]) => {
+    const normalized = Array.from(
+      new Set(
+        repos
+          .map((repo) => repo.trim())
+          .filter(Boolean),
+      ),
+    );
+    await saveReposMutation.mutateAsync(normalized);
+  };
+
+  const submitManagedRepo = managedRepoForm.handleSubmit(async (values) => {
+    const nextRepo = values.repo.trim();
+    const originalRepo = values.originalRepo?.trim();
+    const existingRepos = managedRepos.map((item) => item.repo);
+    const nextRepos = existingRepos.map((repo) => (repo === originalRepo ? nextRepo : repo));
+
+    if (!originalRepo) {
+      nextRepos.push(nextRepo);
+    }
+
+    await persistManagedRepos(nextRepos);
+    setSelectedRepo(nextRepo);
+  });
+
+  const removeManagedRepo = async (repo: string) => {
+    await persistManagedRepos(managedRepos.filter((item) => item.repo !== repo).map((item) => item.repo));
+    if (selectedRepo === repo) {
+      setSelectedRepo(null);
+    }
+  };
 
   return (
     <div>
@@ -136,7 +177,7 @@ export function IssueSyncPage() {
         description="手动触发同步、更新调度配置，并查看最近一次运行结果和 checkpoint。"
       />
 
-      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>手动触发同步</CardTitle>
@@ -183,71 +224,146 @@ export function IssueSyncPage() {
         <Card>
           <CardHeader>
             <CardTitle>受管仓库列表</CardTitle>
-            <CardDescription>同步服务会从数据库中的仓库列表读取目标仓库；每行一个 `owner/repo`。</CardDescription>
+            <CardDescription>使用表格管理同步仓库，支持新增、编辑、删除和单仓库同步。</CardDescription>
           </CardHeader>
           <CardContent>
-            <form
-              className="space-y-4"
-              onSubmit={managedReposForm.handleSubmit(async (values) => {
-                await saveReposMutation.mutateAsync(values);
-              })}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="managedRepos">Repos</Label>
-                <Textarea id="managedRepos" placeholder="每行一个 owner/repo" {...managedReposForm.register("repos")} />
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <div className="overflow-x-auto rounded-lg border border-border/70">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Repo</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Updated</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {managedRepos.length ? (
+                      managedRepos.map((item) => (
+                        <TableRow key={item.repo}>
+                          <TableCell className="font-medium">{item.repo}</TableCell>
+                          <TableCell>{formatDateTime(item.createdAt)}</TableCell>
+                          <TableCell>{formatDateTime(item.updatedAt)}</TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => setSelectedRepo(item.repo)}>
+                                编辑
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => syncMutation.mutate(item.repo)}
+                                disabled={syncMutation.isPending}
+                              >
+                                同步
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  if (window.confirm(`确认删除仓库 ${item.repo} 吗？`)) {
+                                    void removeManagedRepo(item.repo);
+                                  }
+                                }}
+                                disabled={saveReposMutation.isPending}
+                              >
+                                删除
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                          暂无受管仓库，右侧可以新增第一个仓库。
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-              <Button type="submit" disabled={saveReposMutation.isPending}>
-                {saveReposMutation.isPending ? "保存中..." : "保存仓库列表"}
-              </Button>
-            </form>
+
+              <Card className="border-border/70 shadow-none">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base">{selectedRepo ? "编辑仓库" : "新增仓库"}</CardTitle>
+                  <CardDescription>
+                    仓库格式为 `owner/repo`。保存后会立即刷新同步配置和状态。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <form className="space-y-4" onSubmit={(event) => void submitManagedRepo(event)}>
+                    <div className="space-y-2">
+                      <Label htmlFor="managedRepo">Repo</Label>
+                      <Input id="managedRepo" placeholder="owner/repo" {...managedRepoForm.register("repo")} />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" disabled={saveReposMutation.isPending}>
+                        {saveReposMutation.isPending ? "保存中..." : selectedRepo ? "保存更新" : "新增仓库"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setSelectedRepo(null)}
+                        disabled={saveReposMutation.isPending}
+                      >
+                        重置
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>同步配置</CardTitle>
-            <CardDescription>
-              当前存储驱动：{configQuery.data?.storageDriver || "unknown"} · GitHub Token：
-              {configQuery.data?.githubTokenConfigured ? "已配置" : "未配置"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="grid gap-4 md:grid-cols-2"
-              onSubmit={form.handleSubmit(async (values) => {
-                await saveMutation.mutateAsync(values);
-              })}
-            >
-              <label className="flex items-center gap-3 rounded-lg border border-border/70 bg-background/70 px-4 py-3 text-sm font-medium md:col-span-2">
-                <input type="checkbox" className="h-4 w-4" {...form.register("enabled")} />
-                启用 issue sync
-              </label>
-              <div className="space-y-2">
-                <Label htmlFor="intervalSeconds">Interval Seconds</Label>
-                <Input id="intervalSeconds" type="number" {...form.register("intervalSeconds")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pageSize">Page Size</Label>
-                <Input id="pageSize" type="number" {...form.register("pageSize")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxPagesPerRun">Max Pages / Run</Label>
-                <Input id="maxPagesPerRun" type="number" {...form.register("maxPagesPerRun")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="requestTimeoutSeconds">Request Timeout</Label>
-                <Input id="requestTimeoutSeconds" type="number" {...form.register("requestTimeoutSeconds")} />
-              </div>
-
-              <div className="md:col-span-2">
-                <Button type="submit" disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? "保存中..." : "保存配置"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>同步配置</CardTitle>
+          <CardDescription>
+            当前存储驱动：{configQuery.data?.storageDriver || "unknown"} · GitHub Token：
+            {configQuery.data?.githubTokenConfigured ? "已配置" : "未配置"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="grid gap-4 md:grid-cols-2"
+            onSubmit={form.handleSubmit(async (values) => {
+              await saveMutation.mutateAsync(values);
+            })}
+          >
+            <label className="flex items-center gap-3 rounded-lg border border-border/70 bg-background/70 px-4 py-3 text-sm font-medium md:col-span-2">
+              <input type="checkbox" className="h-4 w-4" {...form.register("enabled")} />
+              启用 issue sync
+            </label>
+            <div className="space-y-2">
+              <Label htmlFor="intervalSeconds">Interval Seconds</Label>
+              <Input id="intervalSeconds" type="number" {...form.register("intervalSeconds")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pageSize">Page Size</Label>
+              <Input id="pageSize" type="number" {...form.register("pageSize")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maxPagesPerRun">Max Pages / Run</Label>
+              <Input id="maxPagesPerRun" type="number" {...form.register("maxPagesPerRun")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="requestTimeoutSeconds">Request Timeout</Label>
+              <Input id="requestTimeoutSeconds" type="number" {...form.register("requestTimeoutSeconds")} />
+            </div>
+
+            <div className="md:col-span-2">
+              <Button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? "保存中..." : "保存配置"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>
