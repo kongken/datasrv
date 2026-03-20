@@ -91,10 +91,9 @@ func (s *IssueQueryGRPCServer) GetIssue(ctx context.Context, req *issuesv1.GetIs
 	issue := toProtoIssue(rows[0])
 	if s.commentStore != nil && rows[0].Comments > 0 {
 		comments, err := s.commentStore.LoadComments(ctx, rows[0].Repo, rows[0].IssueID, rows[0].Number)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "load issue comments: %v", err)
+		if err == nil {
+			issue.CommentsDetail = toProtoIssueComments(comments)
 		}
-		issue.CommentsDetail = toProtoIssueComments(comments)
 	}
 
 	return &issuesv1.GetIssueResponse{Issue: issue}, nil
