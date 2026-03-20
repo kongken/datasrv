@@ -20,11 +20,11 @@ export function SiteShell() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-border/70 bg-card/80 px-4 py-3 shadow-panel">
                 <p className="text-[11px] uppercase tracking-[0.22em]">Rendering</p>
-                <p className="mt-1 font-medium text-foreground">SSR + Hydration</p>
+                <p className="mt-1 font-medium text-foreground">React</p>
               </div>
               <div className="rounded-2xl border border-border/70 bg-card/80 px-4 py-3 shadow-panel">
                 <p className="text-[11px] uppercase tracking-[0.22em]">Data</p>
-                <p className="mt-1 font-medium text-foreground">Synced GitHub Issues</p>
+                <p className="mt-1 font-medium text-foreground">Synced</p>
               </div>
             </div>
             <ThemeControls />
