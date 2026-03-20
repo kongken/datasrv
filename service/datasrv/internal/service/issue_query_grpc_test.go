@@ -61,10 +61,37 @@ func TestIssueQueryGRPCServer_GetIssue(t *testing.T) {
 	}
 }
 
+func TestIssueQueryGRPCServer_GetIssueByIDWithoutRepo(t *testing.T) {
+	store := newFakeSyncStore()
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
+		{Repo: "o/r", IssueID: 10, Number: 100, Title: "hello", State: "open", Author: "alice", UpdatedAt: now, AISummary: "short summary"},
+	})
+
+	srv := NewIssueQueryGRPCServer(store, nil)
+	resp, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{
+		Selector: &issuesv1.GetIssueRequest_IssueId{IssueId: 10},
+	})
+	if err != nil {
+		t.Fatalf("GetIssue() by id without repo error = %v", err)
+	}
+	if resp.GetIssue().GetRepo() != "o/r" {
+		t.Fatalf("repo = %q, want o/r", resp.GetIssue().GetRepo())
+	}
+	if resp.GetIssue().GetId() != 10 {
+		t.Fatalf("id = %d, want 10", resp.GetIssue().GetId())
+	}
+}
+
 func TestIssueQueryGRPCServer_GetIssueValidation(t *testing.T) {
 	srv := NewIssueQueryGRPCServer(newFakeSyncStore(), nil)
 	if _, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{Repo: "o/r"}); err == nil {
 		t.Fatalf("GetIssue() should fail when selector missing")
+	}
+	if _, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{
+		Selector: &issuesv1.GetIssueRequest_Number{Number: 100},
+	}); err == nil {
+		t.Fatalf("GetIssue() should fail when repo missing for number lookup")
 	}
 	if _, err := srv.ListIssues(context.Background(), &issuesv1.ListIssuesRequest{}); err != nil {
 		t.Fatalf("ListIssues() should allow empty repo filter: %v", err)

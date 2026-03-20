@@ -66,15 +66,14 @@ func (s *IssueQueryGRPCServer) ListIssues(ctx context.Context, req *issuesv1.Lis
 }
 
 func (s *IssueQueryGRPCServer) GetIssue(ctx context.Context, req *issuesv1.GetIssueRequest) (*issuesv1.GetIssueResponse, error) {
-	if req.GetRepo() == "" {
-		return nil, status.Error(codes.InvalidArgument, "repo is required")
-	}
-
 	filter := dao.SyncIssueFilter{Repo: req.GetRepo(), Limit: 1}
 	switch {
 	case req.GetIssueId() > 0:
 		filter.IssueID = req.GetIssueId()
 	case req.GetNumber() > 0:
+		if req.GetRepo() == "" {
+			return nil, status.Error(codes.InvalidArgument, "repo is required when querying by number")
+		}
 		filter.Number = req.GetNumber()
 	default:
 		return nil, status.Error(codes.InvalidArgument, "either issue_id or number is required")
