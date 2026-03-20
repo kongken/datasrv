@@ -24,6 +24,44 @@
     --radius: 1rem;
   }
 
+  :root[data-theme="dark"] {
+    --background: 220 22% 10%;
+    --foreground: 42 24% 92%;
+    --card: 220 20% 14%;
+    --card-foreground: 42 24% 92%;
+    --primary-foreground: 220 30% 12%;
+    --secondary: 220 18% 18%;
+    --secondary-foreground: 40 18% 92%;
+    --muted: 220 16% 17%;
+    --muted-foreground: 34 14% 68%;
+    --accent-foreground: 210 30% 12%;
+    --destructive: 0 70% 56%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 14% 24%;
+    --input: 220 14% 24%;
+  }
+
+  :root[data-accent="amber"] {
+    --primary: 18 58% 33%;
+    --accent: 148 20% 85%;
+    --accent-foreground: 154 33% 22%;
+    --ring: 18 58% 33%;
+  }
+
+  :root[data-accent="teal"] {
+    --primary: 180 62% 31%;
+    --accent: 173 31% 82%;
+    --accent-foreground: 182 56% 20%;
+    --ring: 180 62% 31%;
+  }
+
+  :root[data-accent="ocean"] {
+    --primary: 208 68% 38%;
+    --accent: 205 52% 84%;
+    --accent-foreground: 210 64% 24%;
+    --ring: 208 68% 38%;
+  }
+
   * {
     @apply border-border;
   }
@@ -39,7 +77,18 @@
       linear-gradient(to right, rgba(128, 101, 67, 0.08) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(128, 101, 67, 0.08) 1px, transparent 1px);
     background-size: auto, 28px 28px, 28px 28px;
+    transition:
+      background-color 180ms ease,
+      color 180ms ease,
+      background-image 180ms ease;
     margin: 0;
+  }
+
+  :root[data-theme="dark"] body {
+    background-image:
+      radial-gradient(circle at top, rgba(22, 145, 183, 0.26), transparent 38%),
+      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   }
 
   a {
