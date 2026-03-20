@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -123,5 +124,42 @@ func TestIssueQueryGRPCServer_GetIssueLoadsComments(t *testing.T) {
 	}
 	if resp.GetIssue().GetCommentsDetail()[0].GetBody() != "reply" {
 		t.Fatalf("comment body = %q, want reply", resp.GetIssue().GetCommentsDetail()[0].GetBody())
+	}
+}
+
+func TestIssueQueryGRPCServer_GetIssueIgnoresCommentLoadFailure(t *testing.T) {
+	store := newFakeSyncStore()
+	commentStore := newFakeIssueCommentStore()
+	commentStore.loadErr = errors.New("object store unavailable")
+	now := time.Now().UTC()
+
+	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
+		{
+			Repo:      "o/r",
+			IssueID:   10,
+			Number:    100,
+			Title:     "hello",
+			State:     "open",
+			Author:    "alice",
+			UpdatedAt: now,
+			Comments:  2,
+		},
+	})
+
+	srv := NewIssueQueryGRPCServer(store, commentStore)
+	resp, err := srv.GetIssue(context.Background(), &issuesv1.GetIssueRequest{
+		Repo: "o/r",
+		Selector: &issuesv1.GetIssueRequest_Number{
+			Number: 100,
+		},
+	})
+	if err != nil {
+		t.Fatalf("GetIssue() error = %v, want nil when comment load fails", err)
+	}
+	if resp.GetIssue() == nil {
+		t.Fatalf("issue = nil, want populated issue")
+	}
+	if len(resp.GetIssue().GetCommentsDetail()) != 0 {
+		t.Fatalf("comments_detail len = %d, want 0 on load failure", len(resp.GetIssue().GetCommentsDetail()))
 	}
 }

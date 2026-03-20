@@ -9,6 +9,7 @@ import (
 
 	"butterfly.orx.me/core"
 	"butterfly.orx.me/core/app"
+	genpkg "github.com/kongken/datasrv/pkg/gen"
 	feedsv1 "github.com/kongken/datasrv/pkg/proto/feeds/v1"
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
 	"github.com/kongken/datasrv/service/datasrv/internal/conf"
@@ -21,21 +22,24 @@ import (
 )
 
 var (
-	appLogger          = slog.Default().With("component", "datasrv.app")
-	syncStore          dao.SyncStore
-	feedStore          dao.FeedStore
-	commentStore       service.IssueCommentStore
-	syncService        *service.IssueSyncService
-	feedSyncService    *service.FeedSyncService
-	adminGRPC          *service.IssueSyncAdminGRPCServer
-	adminAuthGRPC      *service.AdminAuthGRPCServer
-	queryGRPC          *service.IssueQueryGRPCServer
-	feedAdminGRPC      *service.FeedSyncAdminGRPCServer
-	feedQueryGRPC      *service.FeedQueryGRPCServer
-	schedulerStopC     chan struct{}
-	schedulerStop      context.CancelFunc
-	feedSchedulerStopC chan struct{}
-	feedSchedulerStop  context.CancelFunc
+	appLogger             = slog.Default().With("component", "datasrv.app")
+	syncStore             dao.SyncStore
+	feedStore             dao.FeedStore
+	commentStore          service.IssueCommentStore
+	syncService           *service.IssueSyncService
+	feedSyncService       *service.FeedSyncService
+	issueSummarySvc       *service.IssueSummaryService
+	adminGRPC             *service.IssueSyncAdminGRPCServer
+	adminAuthGRPC         *service.AdminAuthGRPCServer
+	queryGRPC             *service.IssueQueryGRPCServer
+	feedAdminGRPC         *service.FeedSyncAdminGRPCServer
+	feedQueryGRPC         *service.FeedQueryGRPCServer
+	schedulerStopC        chan struct{}
+	schedulerStop         context.CancelFunc
+	feedSchedulerStopC    chan struct{}
+	feedSchedulerStop     context.CancelFunc
+	summarySchedulerStopC chan struct{}
+	summarySchedulerStop  context.CancelFunc
 )
 
 func NewApp() *app.App {
@@ -131,6 +135,20 @@ func initSyncComponents() error {
 		return fmt.Errorf("list managed repos after seed: %w", err)
 	}
 	feedSyncService = service.NewFeedSyncService(feedStore, conf.Conf.FeedSync, nil)
+	if conf.Conf.IssueSummary.Enabled {
+		summarizer, err := genpkg.NewSummarizer(context.Background(), genpkg.Config{
+			Provider:      conf.Conf.IssueSummary.Provider,
+			Model:         conf.Conf.IssueSummary.Model,
+			SystemPrompt:  conf.Conf.IssueSummary.SystemPrompt,
+			OpenAIAPIKey:  conf.Conf.IssueSummary.OpenAIAPIKey,
+			OpenAIBaseURL: conf.Conf.IssueSummary.OpenAIBaseURL,
+			GoogleAPIKey:  conf.Conf.IssueSummary.GoogleAPIKey,
+		})
+		if err != nil {
+			return fmt.Errorf("init issue summarizer: %w", err)
+		}
+		issueSummarySvc = service.NewIssueSummaryService(syncStore, commentStore, summarizer, conf.Conf.IssueSummary)
+	}
 	adminGRPC = service.NewIssueSyncAdminGRPCServer(syncStore, syncService, conf.Conf)
 	adminTokenValidator = service.NewRedisAdminTokenStore(conf.Conf)
 	adminAuthGRPC = service.NewAdminAuthGRPCServer(conf.Conf, adminTokenValidator)
@@ -147,6 +165,9 @@ func initSyncComponents() error {
 		"managed_repo_count", len(managedRepos),
 		"managed_repos", managedRepoNames(managedRepos),
 		"feed_sync_enabled", conf.Conf.FeedSync.Enabled,
+		"issue_summary_enabled", conf.Conf.IssueSummary.Enabled,
+		"issue_summary_provider", conf.Conf.IssueSummary.Provider,
+		"issue_summary_model", conf.Conf.IssueSummary.Model,
 	)
 	return nil
 }
@@ -245,6 +266,50 @@ func startSyncScheduler() error {
 			}()
 		}
 	}
+
+	if issueSummarySvc != nil {
+		summaryCfg := issueSummarySvc.GetConfig()
+		if summaryCfg.Enabled && summarySchedulerStopC == nil {
+			summarySchedulerStopC = make(chan struct{})
+			var summarySchedulerCtx context.Context
+			summarySchedulerCtx, summarySchedulerStop = context.WithCancel(context.Background())
+
+			interval := time.Duration(summaryCfg.IntervalSeconds) * time.Second
+			if interval <= 0 {
+				interval = 10 * time.Minute
+			}
+			appLogger.Info("issue summary scheduler started",
+				"interval", interval.String(),
+				"batch_size", summaryCfg.BatchSize,
+				"max_issues_per_run", summaryCfg.MaxIssuesPerRun,
+				"overwrite_existing", summaryCfg.OverwriteExisting,
+				"state", summaryCfg.State,
+			)
+
+			go func() {
+				ticker := time.NewTicker(interval)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-ticker.C:
+						appLogger.Info("issue summary tick triggered")
+						summary, err := issueSummarySvc.Run(summarySchedulerCtx)
+						if err != nil {
+							appLogger.Error("issue summary run failed", "error", err)
+							continue
+						}
+						logIssueSummaryRun(summary)
+					case <-summarySchedulerStopC:
+						appLogger.Info("issue summary scheduler stopped")
+						return
+					case <-summarySchedulerCtx.Done():
+						appLogger.Info("issue summary scheduler context done")
+						return
+					}
+				}
+			}()
+		}
+	}
 	return nil
 }
 
@@ -264,6 +329,14 @@ func stopSyncScheduler() error {
 	if feedSchedulerStopC != nil {
 		close(feedSchedulerStopC)
 		feedSchedulerStopC = nil
+	}
+	if summarySchedulerStop != nil {
+		summarySchedulerStop()
+		summarySchedulerStop = nil
+	}
+	if summarySchedulerStopC != nil {
+		close(summarySchedulerStopC)
+		summarySchedulerStopC = nil
 	}
 	return nil
 }
@@ -306,6 +379,36 @@ func logIssueSyncSummary(summary service.SyncRunSummary) {
 			"repo", result.Repo,
 			"fetched", result.Fetched,
 			"persisted", result.Persisted,
+		)
+	}
+}
+
+func logIssueSummaryRun(summary service.IssueSummaryRunSummary) {
+	appLogger.Info("issue summary run finished",
+		"started_at", summary.StartedAt,
+		"finished_at", summary.FinishedAt,
+		"result_count", len(summary.Results),
+	)
+	for _, result := range summary.Results {
+		if len(result.Errors) > 0 {
+			appLogger.Error("issue summary repo finished with errors",
+				"repo", result.Repo,
+				"scanned", result.Scanned,
+				"updated", result.Updated,
+				"skipped", result.Skipped,
+				"failed", result.Failed,
+				"stopped", result.Stopped,
+				"errors", result.Errors,
+			)
+			continue
+		}
+		appLogger.Info("issue summary repo finished",
+			"repo", result.Repo,
+			"scanned", result.Scanned,
+			"updated", result.Updated,
+			"skipped", result.Skipped,
+			"failed", result.Failed,
+			"stopped", result.Stopped,
 		)
 	}
 }
