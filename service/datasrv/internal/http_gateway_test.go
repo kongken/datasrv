@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/kongken/datasrv/service/datasrv/internal/conf"
 	"github.com/kongken/datasrv/service/datasrv/internal/service"
 	"google.golang.org/grpc"
 )
@@ -194,6 +195,40 @@ func TestRegisterHTTPRoutesHandlesCORSPreflight(t *testing.T) {
 	}
 	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
 		t.Fatalf("Access-Control-Allow-Origin = %q, want *", got)
+	}
+}
+
+func TestRegisterHTTPRoutesServesAdsTxtFromConfig(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prev := conf.Conf.AdsTxt
+	conf.Conf.AdsTxt = "example.com, pub-1234567890, DIRECT, f08c47fec0942fa0"
+	t.Cleanup(func() {
+		conf.Conf.AdsTxt = prev
+	})
+
+	router := gin.New()
+	called := false
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodGet, "/ads.txt", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if called {
+		t.Fatal("gateway handler should not be called for /ads.txt")
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/plain; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want %q", got, "text/plain; charset=utf-8")
+	}
+	if rec.Body.String() != conf.Conf.AdsTxt {
+		t.Fatalf("body = %q, want %q", rec.Body.String(), conf.Conf.AdsTxt)
 	}
 }
 

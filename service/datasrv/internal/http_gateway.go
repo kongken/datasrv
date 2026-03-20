@@ -11,6 +11,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	feedsv1 "github.com/kongken/datasrv/pkg/proto/feeds/v1"
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
+	"github.com/kongken/datasrv/service/datasrv/internal/conf"
 	"github.com/kongken/datasrv/service/datasrv/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -51,6 +52,7 @@ func newGatewayMux(ctx context.Context, endpoint string, opts []grpc.DialOption,
 
 func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.AdminTokenStore) {
 	r.Use(corsMiddleware())
+	r.GET("/ads.txt", serveAdsTxt)
 
 	if gateway == nil {
 		r.NoRoute(func(c *gin.Context) {
@@ -82,6 +84,15 @@ func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.Admi
 
 func setupHTTPRouter(r *gin.Engine) {
 	registerHTTPRoutes(r, gatewayHandler, adminTokenValidator)
+}
+
+func serveAdsTxt(c *gin.Context) {
+	content := conf.Conf.AdsTxt
+	if strings.TrimSpace(content) == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(content))
 }
 
 func corsMiddleware() gin.HandlerFunc {

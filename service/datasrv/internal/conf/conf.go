@@ -6,6 +6,9 @@ var (
 
 // Config holds all configuration for the datasrv service
 type Config struct {
+	// AdsTxt is the content returned by the public /ads.txt endpoint.
+	AdsTxt string `yaml:"ads_txt" json:"ads_txt"`
+
 	// Database configuration (legacy key, same structure as storage)
 	Database StorageConfig `yaml:"database" json:"database"`
 
