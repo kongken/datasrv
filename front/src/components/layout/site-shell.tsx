@@ -62,20 +62,23 @@ export function SiteShell() {
 
             <div
               className={cn(
-                "absolute right-0 top-full z-20 mt-3 w-[min(92vw,30rem)] origin-top-right rounded-[1.75rem] border border-border/80 bg-card/95 p-4 shadow-panel backdrop-blur transition",
+                "absolute right-0 top-full z-20 mt-3 w-[min(92vw,24rem)] origin-top-right rounded-[1.5rem] border border-border/80 bg-card/95 p-3 shadow-panel backdrop-blur transition",
                 panelOpen
                   ? "pointer-events-auto translate-y-0 opacity-100"
                   : "pointer-events-none -translate-y-2 opacity-0",
               )}
             >
-              <div className="grid gap-3 md:grid-cols-[0.9fr_0.9fr_1.4fr]">
-                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
-                  <p className="text-[11px] uppercase tracking-[0.22em]">Rendering</p>
-                  <p className="mt-1 font-medium text-foreground">React</p>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
-                  <p className="text-[11px] uppercase tracking-[0.22em]">Data</p>
-                  <p className="mt-1 font-medium text-foreground">Synced</p>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Rendering</span>
+                    <span className="font-medium text-foreground">React</span>
+                  </div>
+                  <div className="h-4 w-px bg-border/80" aria-hidden="true" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Data</span>
+                    <span className="font-medium text-foreground">Synced</span>
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
                   <ThemeControlsPanel inset />
