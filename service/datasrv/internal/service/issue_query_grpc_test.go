@@ -116,11 +116,14 @@ func TestIssueQueryGRPCServer_ListIssuesAcrossRepos(t *testing.T) {
 	if len(resp.Issues) != 2 {
 		t.Fatalf("issues len = %d, want 2", len(resp.Issues))
 	}
-	if resp.Issues[0].GetRepo() != "o/r2" {
-		t.Fatalf("issues[0].repo = %q, want o/r2 with ai summary prioritized", resp.Issues[0].GetRepo())
+	if resp.Issues[0].GetRepo() != "o/r1" {
+		t.Fatalf("issues[0].repo = %q, want o/r1 because latest issues should be first", resp.Issues[0].GetRepo())
 	}
-	if resp.Issues[0].GetAiSummary() == "" {
-		t.Fatalf("issues[0].ai_summary = empty, want summarized issue first")
+	if resp.Issues[1].GetRepo() != "o/r2" {
+		t.Fatalf("issues[1].repo = %q, want o/r2", resp.Issues[1].GetRepo())
+	}
+	if resp.Issues[1].GetAiSummary() == "" {
+		t.Fatalf("issues[1].ai_summary = empty, want preserved summary")
 	}
 }
 

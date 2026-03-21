@@ -140,3 +140,51 @@ func TestIssueSummaryServiceRunCollectsPerIssueFailures(t *testing.T) {
 		t.Fatalf("errors len = %d, want 1", len(summary.Results[0].Errors))
 	}
 }
+
+func TestIssueSummaryServiceRunPrioritizesLatestIssuesAcrossRepos(t *testing.T) {
+	store := newFakeSyncStore()
+	now := time.Now().UTC()
+
+	_, _ = store.ReplaceManagedRepos(context.Background(), []string{"o/old", "o/new"})
+	_, _ = store.UpsertIssues(context.Background(), "o/old", []dao.SyncedIssue{{
+		Repo:      "o/old",
+		IssueID:   10,
+		Number:    100,
+		Title:     "older issue",
+		Body:      "older body",
+		State:     "open",
+		Author:    "alice",
+		UpdatedAt: now.Add(-time.Hour),
+	}})
+	_, _ = store.UpsertIssues(context.Background(), "o/new", []dao.SyncedIssue{{
+		Repo:      "o/new",
+		IssueID:   11,
+		Number:    101,
+		Title:     "newer issue",
+		Body:      "newer body",
+		State:     "open",
+		Author:    "bob",
+		UpdatedAt: now,
+	}})
+
+	summarizer := &fakeIssueSummarizer{text: "generated summary"}
+	svc := NewIssueSummaryService(store, nil, summarizer, conf.IssueSummaryConfig{
+		Enabled:         true,
+		BatchSize:       10,
+		MaxIssuesPerRun: 1,
+	})
+
+	summary, err := svc.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(summarizer.calls) != 1 {
+		t.Fatalf("summarizer calls = %d, want 1", len(summarizer.calls))
+	}
+	if summarizer.calls[0].Issue.Repo != "o/new" {
+		t.Fatalf("first summarized repo = %q, want o/new", summarizer.calls[0].Issue.Repo)
+	}
+	if summary.Results[0].Repo != "o/new" {
+		t.Fatalf("first summary result repo = %q, want o/new", summary.Results[0].Repo)
+	}
+}

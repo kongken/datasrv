@@ -78,72 +78,51 @@ func (s *IssueSummaryService) Run(ctx context.Context) (IssueSummaryRunSummary, 
 		"max_issues_per_run", s.cfg.MaxIssuesPerRun,
 		"state", s.cfg.State,
 		"overwrite_existing", s.cfg.OverwriteExisting,
+		"processing_order", "latest_first",
 	)
 
-	remaining := s.cfg.MaxIssuesPerRun
+	managedRepoSet := make(map[string]struct{}, len(repos))
 	for _, repo := range repos {
-		if remaining == 0 && s.cfg.MaxIssuesPerRun > 0 {
-			logger.Info("issue summary run reached max issues per run before repo",
-				"repo", repo.Repo,
-				"max_issues_per_run", s.cfg.MaxIssuesPerRun,
-			)
-			break
-		}
-		result, err := s.runRepo(ctx, repo.Repo, &remaining)
-		if err != nil {
-			return summary, err
-		}
-		summary.Results = append(summary.Results, result)
+		managedRepoSet[repo.Repo] = struct{}{}
 	}
 
-	logger.Info("issue summary run completed",
-		"started_at", summary.StartedAt,
-		"finished_at", summary.FinishedAt,
-		"repo_count", len(summary.Results),
-	)
-
-	return summary, nil
-}
-
-func (s *IssueSummaryService) runRepo(ctx context.Context, repo string, remaining *int) (IssueSummaryRepoResult, error) {
-	result := IssueSummaryRepoResult{Repo: repo}
 	batchSize := s.cfg.BatchSize
 	if batchSize <= 0 {
 		batchSize = 20
 	}
-
 	state := strings.TrimSpace(s.cfg.State)
 	if state == "" {
 		state = "all"
 	}
 
-	logger := corelog.FromContext(ctx).With("component", "datasrv.issue_summary", "repo", repo)
-	logger.Info("issue summary repo scan started",
-		"repo", repo,
-		"batch_size", batchSize,
-		"state", state,
-		"overwrite_existing", s.cfg.OverwriteExisting,
-	)
+	resultByRepo := make(map[string]*IssueSummaryRepoResult, len(repos))
+	repoOrder := make([]string, 0, len(repos))
+	getResult := func(repo string) *IssueSummaryRepoResult {
+		if result, ok := resultByRepo[repo]; ok {
+			return result
+		}
+		result := &IssueSummaryRepoResult{Repo: repo}
+		resultByRepo[repo] = result
+		repoOrder = append(repoOrder, repo)
+		return result
+	}
 
+	remaining := s.cfg.MaxIssuesPerRun
+	limited := s.cfg.MaxIssuesPerRun > 0
 	for offset := 0; ; offset += batchSize {
-		if remaining != nil && *remaining == 0 && s.cfg.MaxIssuesPerRun > 0 {
-			result.Stopped = true
-			logger.Info("issue summary repo scan stopped by max issues per run",
-				"scanned", result.Scanned,
-				"updated", result.Updated,
-				"skipped", result.Skipped,
-				"failed", result.Failed,
+		if limited && remaining == 0 {
+			logger.Info("issue summary run stopped by max issues per run",
+				"max_issues_per_run", s.cfg.MaxIssuesPerRun,
 			)
-			return result, nil
+			break
 		}
 
-		logger.Debug("issue summary loading issue page",
+		logger.Debug("issue summary loading global issue page",
 			"offset", offset,
 			"limit", batchSize,
-			"remaining", remainingValue(remaining),
+			"remaining", remainingValue(limited, remaining),
 		)
 		rows, err := s.store.ListIssues(ctx, dao.SyncIssueFilter{
-			Repo:   repo,
 			State:  state,
 			Offset: offset,
 			Limit:  batchSize,
@@ -154,46 +133,48 @@ func (s *IssueSummaryService) runRepo(ctx context.Context, repo string, remainin
 				"limit", batchSize,
 				"error", err,
 			)
-			return result, fmt.Errorf("list issues for repo %s: %w", repo, err)
+			return summary, fmt.Errorf("list latest issues: %w", err)
 		}
 		if len(rows) == 0 {
-			logger.Info("issue summary repo scan completed",
-				"scanned", result.Scanned,
-				"updated", result.Updated,
-				"skipped", result.Skipped,
-				"failed", result.Failed,
-			)
-			return result, nil
+			break
 		}
-		logger.Debug("issue summary issue page loaded",
+		logger.Debug("issue summary global issue page loaded",
 			"offset", offset,
 			"count", len(rows),
 		)
 
 		for _, row := range rows {
-			if remaining != nil && *remaining == 0 && s.cfg.MaxIssuesPerRun > 0 {
-				result.Stopped = true
-				logger.Info("issue summary repo scan stopped mid-page by max issues per run",
+			if _, ok := managedRepoSet[row.Repo]; !ok {
+				logger.Debug("issue summary skipped unmanaged repo issue",
+					"repo", row.Repo,
+					"issue_id", row.IssueID,
 					"number", row.Number,
-					"scanned", result.Scanned,
-					"updated", result.Updated,
-					"skipped", result.Skipped,
-					"failed", result.Failed,
 				)
-				return result, nil
+				continue
+			}
+			result := getResult(row.Repo)
+			if limited && remaining == 0 {
+				result.Stopped = true
+				logger.Info("issue summary run stopped mid-page by max issues per run",
+					"repo", row.Repo,
+					"number", row.Number,
+					"max_issues_per_run", s.cfg.MaxIssuesPerRun,
+				)
+				break
 			}
 			result.Scanned++
-			if remaining != nil && s.cfg.MaxIssuesPerRun > 0 {
-				*remaining--
+			if limited {
+				remaining--
 			}
-			issueLogger := logger.With("issue_id", row.IssueID, "number", row.Number)
+			repoLogger := logger.With("repo", row.Repo)
+			issueLogger := repoLogger.With("issue_id", row.IssueID, "number", row.Number)
 			issueLogger.Debug("issue summary processing issue",
 				"issue_id", row.IssueID,
 				"number", row.Number,
 				"title", row.Title,
 				"has_existing_summary", strings.TrimSpace(row.AISummary) != "",
 				"comment_count", row.Comments,
-				"remaining", remainingValue(remaining),
+				"remaining", remainingValue(limited, remaining),
 			)
 
 			if !s.cfg.OverwriteExisting && strings.TrimSpace(row.AISummary) != "" {
@@ -245,15 +226,21 @@ func (s *IssueSummaryService) runRepo(ctx context.Context, repo string, remainin
 		}
 
 		if len(rows) < batchSize {
-			logger.Info("issue summary repo scan completed with partial page",
-				"scanned", result.Scanned,
-				"updated", result.Updated,
-				"skipped", result.Skipped,
-				"failed", result.Failed,
-			)
-			return result, nil
+			break
 		}
 	}
+
+	for _, repo := range repoOrder {
+		summary.Results = append(summary.Results, *resultByRepo[repo])
+	}
+
+	logger.Info("issue summary run completed",
+		"started_at", summary.StartedAt,
+		"finished_at", summary.FinishedAt,
+		"repo_count", len(summary.Results),
+	)
+
+	return summary, nil
 }
 
 func (s *IssueSummaryService) loadReplies(ctx context.Context, issue dao.SyncedIssue) ([]genpkg.IssueReply, error) {
@@ -286,11 +273,11 @@ func (s *IssueSummaryService) loadReplies(ctx context.Context, issue dao.SyncedI
 	return replies, nil
 }
 
-func remainingValue(remaining *int) any {
-	if remaining == nil {
+func remainingValue(limited bool, remaining int) any {
+	if !limited {
 		return nil
 	}
-	return *remaining
+	return remaining
 }
 
 func toGenIssue(issue dao.SyncedIssue) genpkg.Issue {

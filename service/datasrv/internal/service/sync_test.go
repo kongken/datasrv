@@ -89,11 +89,6 @@ func (f *fakeSyncStore) ListIssues(_ context.Context, filter dao.SyncIssueFilter
 		filtered = append(filtered, it)
 	}
 	sort.SliceStable(filtered, func(i, j int) bool {
-		iHasSummary := filtered[i].AISummary != ""
-		jHasSummary := filtered[j].AISummary != ""
-		if iHasSummary != jHasSummary {
-			return iHasSummary
-		}
 		return filtered[i].UpdatedAt.After(filtered[j].UpdatedAt)
 	})
 
