@@ -52,6 +52,11 @@ func TestIssueSyncAdminGRPCServer_GetAndUpdateSyncConfig(t *testing.T) {
 func TestIssueSyncAdminGRPCServer_ListAndReplaceManagedSyncRepos(t *testing.T) {
 	store := newFakeSyncStore()
 	_, _ = store.ReplaceManagedRepos(context.Background(), []string{"o/a"})
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/a", []dao.SyncedIssue{
+		{Repo: "o/a", IssueID: 1, Number: 1, Title: "one", State: "open", Author: "alice", UpdatedAt: now},
+		{Repo: "o/a", IssueID: 2, Number: 2, Title: "two", State: "open", Author: "bob", UpdatedAt: now},
+	})
 	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}, nil), &conf.Config{})
 
 	listed, err := srv.ListManagedSyncRepos(context.Background(), &emptypb.Empty{})
@@ -60,6 +65,9 @@ func TestIssueSyncAdminGRPCServer_ListAndReplaceManagedSyncRepos(t *testing.T) {
 	}
 	if len(listed.Repos) != 1 || listed.Repos[0].GetRepo() != "o/a" {
 		t.Fatalf("listed repos = %#v, want [o/a]", listed.Repos)
+	}
+	if listed.Repos[0].GetIssueCount() != 2 {
+		t.Fatalf("issue_count = %d, want 2", listed.Repos[0].GetIssueCount())
 	}
 
 	replaced, err := srv.ReplaceManagedSyncRepos(context.Background(), &issuesv1.ReplaceManagedSyncReposRequest{

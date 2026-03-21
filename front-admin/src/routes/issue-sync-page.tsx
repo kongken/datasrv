@@ -266,12 +266,13 @@ export function IssueSyncPage() {
             <CardDescription>使用表格管理同步仓库，支持新增、编辑、删除和单仓库同步。</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-4">
               <div className="overflow-x-auto rounded-lg border border-border/70">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Repo</TableHead>
+                      <TableHead>Issues</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Updated</TableHead>
                       <TableHead className="text-right">操作</TableHead>
@@ -282,6 +283,7 @@ export function IssueSyncPage() {
                       managedRepos.map((item) => (
                         <TableRow key={item.repo}>
                           <TableCell className="font-medium">{item.repo}</TableCell>
+                          <TableCell>{item.issueCount ?? 0}</TableCell>
                           <TableCell>{formatDateTime(item.createdAt)}</TableCell>
                           <TableCell>{formatDateTime(item.updatedAt)}</TableCell>
                           <TableCell>
@@ -315,7 +317,7 @@ export function IssueSyncPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
                           暂无受管仓库，右侧可以新增第一个仓库。
                         </TableCell>
                       </TableRow>
@@ -324,35 +326,42 @@ export function IssueSyncPage() {
                 </Table>
               </div>
 
-              <Card className="border-border/70 shadow-none">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base">{selectedRepo ? "编辑仓库" : "新增仓库"}</CardTitle>
-                  <CardDescription>
-                    仓库格式为 `owner/repo`。保存后会立即刷新同步配置和状态。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <form className="space-y-4" onSubmit={(event) => void submitManagedRepo(event)}>
-                    <div className="space-y-2">
-                      <Label htmlFor="managedRepo">Repo</Label>
-                      <Input id="managedRepo" placeholder="owner/repo" {...managedRepoForm.register("repo")} />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button type="submit" disabled={saveReposMutation.isPending}>
-                        {saveReposMutation.isPending ? "保存中..." : selectedRepo ? "保存更新" : "新增仓库"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setSelectedRepo(null)}
-                        disabled={saveReposMutation.isPending}
-                      >
-                        重置
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
+              <div className="rounded-xl border border-border/70 bg-background/40 p-4">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold">{selectedRepo ? "编辑仓库" : "新增仓库"}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      仓库格式为 `owner/repo`。保存后会立即刷新同步配置和状态。
+                    </p>
+                  </div>
+                  {selectedRepo ? (
+                    <Badge variant="outline" className="text-xs">
+                      当前编辑 {selectedRepo}
+                    </Badge>
+                  ) : null}
+                </div>
+
+                <form
+                  className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end"
+                  onSubmit={(event) => void submitManagedRepo(event)}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="managedRepo">Repo</Label>
+                    <Input id="managedRepo" placeholder="owner/repo" {...managedRepoForm.register("repo")} />
+                  </div>
+                  <Button type="submit" disabled={saveReposMutation.isPending}>
+                    {saveReposMutation.isPending ? "保存中..." : selectedRepo ? "保存更新" : "新增仓库"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSelectedRepo(null)}
+                    disabled={saveReposMutation.isPending}
+                  >
+                    重置
+                  </Button>
+                </form>
+              </div>
             </div>
           </CardContent>
         </Card>

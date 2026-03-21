@@ -96,6 +96,7 @@ export type SyncConfig = {
 
 export type ManagedSyncRepo = {
   repo: string;
+  issueCount?: number;
   createdAt?: string;
   updatedAt?: string;
 };

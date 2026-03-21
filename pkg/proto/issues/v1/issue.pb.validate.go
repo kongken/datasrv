@@ -1658,6 +1658,8 @@ func (m *ManagedSyncRepo) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for IssueCount
+
 	if len(errors) > 0 {
 		return ManagedSyncRepoMultiError(errors)
 	}

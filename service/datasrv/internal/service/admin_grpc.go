@@ -116,7 +116,11 @@ func (s *IssueSyncAdminGRPCServer) ListManagedSyncRepos(ctx context.Context, _ *
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list managed repos: %v", err)
 	}
-	return &issuesv1.ListManagedSyncReposResponse{Repos: toProtoManagedRepos(repos)}, nil
+	items, err := s.toProtoManagedRepos(ctx, repos)
+	if err != nil {
+		return nil, err
+	}
+	return &issuesv1.ListManagedSyncReposResponse{Repos: items}, nil
 }
 
 func (s *IssueSyncAdminGRPCServer) ReplaceManagedSyncRepos(ctx context.Context, req *issuesv1.ReplaceManagedSyncReposRequest) (*issuesv1.ListManagedSyncReposResponse, error) {
@@ -124,7 +128,11 @@ func (s *IssueSyncAdminGRPCServer) ReplaceManagedSyncRepos(ctx context.Context, 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "replace managed repos: %v", err)
 	}
-	return &issuesv1.ListManagedSyncReposResponse{Repos: toProtoManagedRepos(repos)}, nil
+	items, err := s.toProtoManagedRepos(ctx, repos)
+	if err != nil {
+		return nil, err
+	}
+	return &issuesv1.ListManagedSyncReposResponse{Repos: items}, nil
 }
 
 func (s *IssueSyncAdminGRPCServer) GetSyncStatus(ctx context.Context, _ *emptypb.Empty) (*issuesv1.GetSyncStatusResponse, error) {
@@ -206,10 +214,17 @@ func (s *IssueSyncAdminGRPCServer) ClearIssueAISummaries(ctx context.Context, re
 	return &issuesv1.ClearIssueAISummariesResponse{Cleared: int32(cleared)}, nil
 }
 
-func toProtoManagedRepos(repos []dao.ManagedRepo) []*issuesv1.ManagedSyncRepo {
+func (s *IssueSyncAdminGRPCServer) toProtoManagedRepos(ctx context.Context, repos []dao.ManagedRepo) ([]*issuesv1.ManagedSyncRepo, error) {
 	out := make([]*issuesv1.ManagedSyncRepo, 0, len(repos))
 	for _, repo := range repos {
-		item := &issuesv1.ManagedSyncRepo{Repo: repo.Repo}
+		rows, err := s.store.ListIssues(ctx, dao.SyncIssueFilter{Repo: repo.Repo})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "count managed repo issues for %s: %v", repo.Repo, err)
+		}
+		item := &issuesv1.ManagedSyncRepo{
+			Repo:       repo.Repo,
+			IssueCount: int32(len(rows)),
+		}
 		if !repo.CreatedAt.IsZero() {
 			item.CreatedAt = timestamppb.New(repo.CreatedAt)
 		}
@@ -218,7 +233,7 @@ func toProtoManagedRepos(repos []dao.ManagedRepo) []*issuesv1.ManagedSyncRepo {
 		}
 		out = append(out, item)
 	}
-	return out
+	return out, nil
 }
 
 func managedRepoNames(repos []dao.ManagedRepo) []string {
