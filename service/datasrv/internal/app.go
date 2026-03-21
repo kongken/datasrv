@@ -10,6 +10,7 @@ import (
 	"butterfly.orx.me/core"
 	"butterfly.orx.me/core/app"
 	genpkg "github.com/kongken/datasrv/pkg/gen"
+	blogv1 "github.com/kongken/datasrv/pkg/proto/blog/v1"
 	feedsv1 "github.com/kongken/datasrv/pkg/proto/feeds/v1"
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
 	"github.com/kongken/datasrv/service/datasrv/internal/conf"
@@ -25,6 +26,7 @@ var (
 	appLogger             = slog.Default().With("component", "datasrv.app")
 	syncStore             dao.SyncStore
 	feedStore             dao.FeedStore
+	blogStore             dao.BlogStore
 	commentStore          service.IssueCommentStore
 	syncService           *service.IssueSyncService
 	feedSyncService       *service.FeedSyncService
@@ -34,6 +36,8 @@ var (
 	queryGRPC             *service.IssueQueryGRPCServer
 	feedAdminGRPC         *service.FeedSyncAdminGRPCServer
 	feedQueryGRPC         *service.FeedQueryGRPCServer
+	blogAdminGRPC         *service.BlogAdminGRPCServer
+	blogQueryGRPC         *service.BlogQueryGRPCServer
 	schedulerStopC        chan struct{}
 	schedulerStop         context.CancelFunc
 	feedSchedulerStopC    chan struct{}
@@ -77,6 +81,12 @@ func registerGRPC(server *grpc.Server) {
 	}
 	if feedQueryGRPC != nil {
 		feedsv1.RegisterFeedQueryServiceServer(server, feedQueryGRPC)
+	}
+	if blogAdminGRPC != nil {
+		blogv1.RegisterBlogAdminServiceServer(server, blogAdminGRPC)
+	}
+	if blogQueryGRPC != nil {
+		blogv1.RegisterBlogQueryServiceServer(server, blogQueryGRPC)
 	}
 }
 
@@ -155,6 +165,9 @@ func initSyncComponents() error {
 	queryGRPC = service.NewIssueQueryGRPCServer(syncStore, commentStore)
 	feedAdminGRPC = service.NewFeedSyncAdminGRPCServer(feedStore, feedSyncService, conf.Conf)
 	feedQueryGRPC = service.NewFeedQueryGRPCServer(feedStore)
+	blogStore = dao.NewMemoryBlogStore()
+	blogAdminGRPC = service.NewBlogAdminGRPCServer(blogStore)
+	blogQueryGRPC = service.NewBlogQueryGRPCServer(blogStore)
 	appLogger.Info("sync components initialized",
 		"storage_driver", driver,
 		"issue_comment_storage_enabled", conf.Conf.IssueCommentStorage.Enabled,
@@ -168,6 +181,7 @@ func initSyncComponents() error {
 		"issue_summary_enabled", conf.Conf.IssueSummary.Enabled,
 		"issue_summary_provider", conf.Conf.IssueSummary.Provider,
 		"issue_summary_model", conf.Conf.IssueSummary.Model,
+		"blog_store_driver", "memory",
 	)
 	return nil
 }
