@@ -165,9 +165,11 @@ func initSyncComponents() error {
 	queryGRPC = service.NewIssueQueryGRPCServer(syncStore, commentStore)
 	feedAdminGRPC = service.NewFeedSyncAdminGRPCServer(feedStore, feedSyncService, conf.Conf)
 	feedQueryGRPC = service.NewFeedQueryGRPCServer(feedStore)
-	blogStore = dao.NewMemoryBlogStore()
-	blogAdminGRPC = service.NewBlogAdminGRPCServer(blogStore)
-	blogQueryGRPC = service.NewBlogQueryGRPCServer(blogStore)
+	if typedBlogStore, ok := combined.(dao.BlogStore); ok {
+		blogStore = typedBlogStore
+		blogAdminGRPC = service.NewBlogAdminGRPCServer(blogStore)
+		blogQueryGRPC = service.NewBlogQueryGRPCServer(blogStore)
+	}
 	appLogger.Info("sync components initialized",
 		"storage_driver", driver,
 		"issue_comment_storage_enabled", conf.Conf.IssueCommentStorage.Enabled,
