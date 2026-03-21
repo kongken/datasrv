@@ -56,6 +56,7 @@ func newGatewayMux(ctx context.Context, endpoint string, opts []grpc.DialOption,
 func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.AdminTokenStore) {
 	r.Use(corsMiddleware())
 	r.GET("/ads.txt", serveAdsTxt)
+	r.GET("/sitemap.xml", serveSitemapXML)
 
 	if gateway == nil {
 		r.NoRoute(func(c *gin.Context) {
@@ -96,6 +97,15 @@ func serveAdsTxt(c *gin.Context) {
 		return
 	}
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(content))
+}
+
+func serveSitemapXML(c *gin.Context) {
+	content := conf.Conf.SitemapXML
+	if strings.TrimSpace(content) == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.Data(http.StatusOK, "application/xml; charset=utf-8", []byte(content))
 }
 
 func corsMiddleware() gin.HandlerFunc {

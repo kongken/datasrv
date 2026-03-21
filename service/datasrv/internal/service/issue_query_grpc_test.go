@@ -199,3 +199,62 @@ func TestIssueQueryGRPCServer_GetIssueIgnoresCommentLoadFailure(t *testing.T) {
 		t.Fatalf("comments_detail len = %d, want 0 on load failure", len(resp.GetIssue().GetCommentsDetail()))
 	}
 }
+
+func TestIssueQueryGRPCServer_ListIssuesUsesCache(t *testing.T) {
+	store := newFakeSyncStore()
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
+		{Repo: "o/r", IssueID: 1, Number: 1, Title: "one", State: "open", Author: "alice", UpdatedAt: now},
+	})
+
+	srv := NewIssueQueryGRPCServer(store, nil)
+	req := &issuesv1.ListIssuesRequest{Repo: "o/r", State: "open", Page: 1, PageSize: 20}
+	if _, err := srv.ListIssues(context.Background(), req); err != nil {
+		t.Fatalf("ListIssues() first call error = %v", err)
+	}
+	if _, err := srv.ListIssues(context.Background(), req); err != nil {
+		t.Fatalf("ListIssues() second call error = %v", err)
+	}
+	if store.listCalls != 1 {
+		t.Fatalf("store list calls = %d, want 1 when second call hits cache", store.listCalls)
+	}
+}
+
+func TestIssueQueryGRPCServer_GetIssueUsesCache(t *testing.T) {
+	store := newFakeSyncStore()
+	commentStore := newFakeIssueCommentStore()
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
+		{
+			Repo:      "o/r",
+			IssueID:   10,
+			Number:    100,
+			Title:     "hello",
+			State:     "open",
+			Author:    "alice",
+			UpdatedAt: now,
+			Comments:  1,
+		},
+	})
+	commentStore.saved["o/r/10-100.json"] = []dao.IssueComment{{
+		ID:        1,
+		Body:      "reply",
+		UserLogin: "bob",
+		CreatedAt: now,
+	}}
+
+	srv := NewIssueQueryGRPCServer(store, commentStore)
+	req := &issuesv1.GetIssueRequest{Repo: "o/r", Selector: &issuesv1.GetIssueRequest_Number{Number: 100}}
+	if _, err := srv.GetIssue(context.Background(), req); err != nil {
+		t.Fatalf("GetIssue() first call error = %v", err)
+	}
+	if _, err := srv.GetIssue(context.Background(), req); err != nil {
+		t.Fatalf("GetIssue() second call error = %v", err)
+	}
+	if store.listCalls != 1 {
+		t.Fatalf("store list calls = %d, want 1 when second call hits cache", store.listCalls)
+	}
+	if commentStore.loadCnt != 1 {
+		t.Fatalf("comment load calls = %d, want 1 when second call hits cache", commentStore.loadCnt)
+	}
+}

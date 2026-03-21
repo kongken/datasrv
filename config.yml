@@ -3,6 +3,14 @@
 #   BUTTERFLY_CONFIG_TYPE=file
 #   BUTTERFLY_CONFIG_FILE_PATH=./config.yml
 
+sitemap_xml: |
+  <?xml version="1.0" encoding="UTF-8"?>
+  <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>https://example.com/</loc>
+    </url>
+  </urlset>
+
 storage:
   driver: postgres
   postgres_dsn: "host=127.0.0.1 user=postgres password=postgres dbname=datasrv port=5432 sslmode=disable"

@@ -9,6 +9,9 @@ type Config struct {
 	// AdsTxt is the content returned by the public /ads.txt endpoint.
 	AdsTxt string `yaml:"ads_txt" json:"ads_txt"`
 
+	// SitemapXML is the content returned by the public /sitemap.xml endpoint.
+	SitemapXML string `yaml:"sitemap_xml" json:"sitemap_xml"`
+
 	// Database configuration (legacy key, same structure as storage)
 	Database StorageConfig `yaml:"database" json:"database"`
 

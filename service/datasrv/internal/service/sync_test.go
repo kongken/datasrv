@@ -18,12 +18,14 @@ type fakeSyncStore struct {
 	checkpoints map[string]dao.Checkpoint
 	issues      map[string][]dao.SyncedIssue
 	managed     map[string]dao.ManagedRepo
+	listCalls   int
 }
 
 type fakeIssueCommentStore struct {
 	saved   map[string][]dao.IssueComment
 	loadErr error
 	saveErr error
+	loadCnt int
 }
 
 func newFakeSyncStore() *fakeSyncStore {
@@ -65,6 +67,7 @@ func (f *fakeSyncStore) UpsertIssues(_ context.Context, repo string, issues []da
 func (f *fakeSyncStore) ListIssues(_ context.Context, filter dao.SyncIssueFilter) ([]dao.SyncedIssue, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.listCalls++
 
 	var source []dao.SyncedIssue
 	if filter.Repo == "" {
@@ -283,6 +286,7 @@ func (f *fakeIssueCommentStore) SaveComments(_ context.Context, repo string, iss
 }
 
 func (f *fakeIssueCommentStore) LoadComments(_ context.Context, repo string, issueID int64, issueNumber int32) ([]dao.IssueComment, error) {
+	f.loadCnt++
 	if f.loadErr != nil {
 		return nil, f.loadErr
 	}

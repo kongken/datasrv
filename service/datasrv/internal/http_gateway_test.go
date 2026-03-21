@@ -232,6 +232,40 @@ func TestRegisterHTTPRoutesServesAdsTxtFromConfig(t *testing.T) {
 	}
 }
 
+func TestRegisterHTTPRoutesServesSitemapXMLFromConfig(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prev := conf.Conf.SitemapXML
+	conf.Conf.SitemapXML = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`
+	t.Cleanup(func() {
+		conf.Conf.SitemapXML = prev
+	})
+
+	router := gin.New()
+	called := false
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if called {
+		t.Fatal("gateway handler should not be called for /sitemap.xml")
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/xml; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want %q", got, "application/xml; charset=utf-8")
+	}
+	if rec.Body.String() != conf.Conf.SitemapXML {
+		t.Fatalf("body = %q, want %q", rec.Body.String(), conf.Conf.SitemapXML)
+	}
+}
+
 type fakeAdminTokenValidator struct {
 	lastToken string
 	user      string
