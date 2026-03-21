@@ -61,3 +61,10 @@ export function triggerIssueSync(repo?: string) {
     body: { repo: repo ?? "" },
   });
 }
+
+export function clearIssueAISummaries(repo?: string) {
+  return apiRequest<{ cleared: number }>("/api/v1/admin/issues/ai-summary:clear", {
+    method: "POST",
+    body: { repo: repo ?? "" },
+  });
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -327,6 +328,19 @@ func (g *GormSyncStore) UpdateIssueAISummary(ctx context.Context, repo string, i
 		return SyncedIssue{}, ErrIssueNotFound
 	}
 	return rows[0], nil
+}
+
+func (g *GormSyncStore) ClearIssueAISummaries(ctx context.Context, repo string) (int, error) {
+	query := g.db.WithContext(ctx).Model(&gormIssue{})
+	if repo = strings.TrimSpace(repo); repo != "" {
+		query = query.Where("repo = ?", repo)
+	}
+
+	result := query.Update("ai_summary", "")
+	if result.Error != nil {
+		return 0, fmt.Errorf("gorm clear ai_summary: %w", result.Error)
+	}
+	return int(result.RowsAffected), nil
 }
 
 func (g *GormSyncStore) GetRepoCheckpoint(ctx context.Context, repo string) (Checkpoint, error) {

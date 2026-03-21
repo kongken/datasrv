@@ -141,6 +141,36 @@ func TestIssueSyncAdminGRPCServer_UpdateIssueAISummaryByNumber(t *testing.T) {
 	}
 }
 
+func TestIssueSyncAdminGRPCServer_ClearIssueAISummaries(t *testing.T) {
+	store := newFakeSyncStore()
+	now := time.Now().UTC()
+	_, _ = store.UpsertIssues(context.Background(), "o/r", []dao.SyncedIssue{
+		{Repo: "o/r", IssueID: 10, Number: 100, Title: "one", State: "open", Author: "alice", AISummary: "summary 1", UpdatedAt: now},
+		{Repo: "o/r", IssueID: 11, Number: 101, Title: "two", State: "open", Author: "bob", AISummary: "summary 2", UpdatedAt: now},
+	})
+
+	srv := NewIssueSyncAdminGRPCServer(store, NewIssueSyncService(store, conf.GitHubConfig{}, conf.GitHubSyncConfig{}, nil), &conf.Config{})
+	resp, err := srv.ClearIssueAISummaries(context.Background(), &issuesv1.ClearIssueAISummariesRequest{
+		Repo: "o/r",
+	})
+	if err != nil {
+		t.Fatalf("ClearIssueAISummaries() error = %v", err)
+	}
+	if resp.GetCleared() != 2 {
+		t.Fatalf("cleared = %d, want 2", resp.GetCleared())
+	}
+
+	rows, err := store.ListIssues(context.Background(), dao.SyncIssueFilter{Repo: "o/r", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListIssues() error = %v", err)
+	}
+	for _, row := range rows {
+		if row.AISummary != "" {
+			t.Fatalf("ai_summary for #%d = %q, want empty", row.Number, row.AISummary)
+		}
+	}
+}
+
 type errorSyncStore struct{}
 
 func (e *errorSyncStore) UpsertIssues(context.Context, string, []dao.SyncedIssue) (int, error) {
@@ -151,6 +181,9 @@ func (e *errorSyncStore) ListIssues(context.Context, dao.SyncIssueFilter) ([]dao
 }
 func (e *errorSyncStore) UpdateIssueAISummary(context.Context, string, int64, int32, string) (dao.SyncedIssue, error) {
 	return dao.SyncedIssue{}, context.DeadlineExceeded
+}
+func (e *errorSyncStore) ClearIssueAISummaries(context.Context, string) (int, error) {
+	return 0, context.DeadlineExceeded
 }
 func (e *errorSyncStore) ListManagedRepos(context.Context) ([]dao.ManagedRepo, error) {
 	return nil, context.DeadlineExceeded

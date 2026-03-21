@@ -148,6 +148,28 @@ Authorization: Bearer your-admin-token
 
 也可以传 `issueId` 代替 `number`。
 
+### `POST /api/v1/admin/issues/ai-summary:clear`
+
+批量清空 issue 的 AI 摘要，用于后续重建 summary。
+
+请求体示例：
+
+```json
+{
+  "repo": "owner/repo"
+}
+```
+
+`repo` 可为空，表示清空全部受管仓库的 issue AI 摘要。
+
+响应体示例：
+
+```json
+{
+  "cleared": 123
+}
+```
+
 ## Issue Query
 
 ### `GET /api/v1/issues`

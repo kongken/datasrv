@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -415,6 +416,19 @@ func (m *MongoSyncStore) UpdateIssueAISummary(ctx context.Context, repo string, 
 		return SyncedIssue{}, ErrIssueNotFound
 	}
 	return rows[0], nil
+}
+
+func (m *MongoSyncStore) ClearIssueAISummaries(ctx context.Context, repo string) (int, error) {
+	filter := bson.M{}
+	if repo = strings.TrimSpace(repo); repo != "" {
+		filter["repo"] = repo
+	}
+
+	result, err := m.issuesCol.UpdateMany(ctx, filter, bson.M{"$set": bson.M{"ai_summary": ""}})
+	if err != nil {
+		return 0, fmt.Errorf("clear ai summary: %w", err)
+	}
+	return int(result.ModifiedCount), nil
 }
 
 func (m *MongoSyncStore) SaveRepoCheckpoint(ctx context.Context, checkpoint Checkpoint) error {

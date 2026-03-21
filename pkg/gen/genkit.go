@@ -162,7 +162,7 @@ func normalizeModelName(provider, model string) string {
 func buildSummaryPrompt(issue Issue, replies []IssueReply) string {
 	var b strings.Builder
 
-	b.WriteString("请基于下面的 GitHub Issue 和 replies 生成摘要。\n\n")
+	b.WriteString("Please generate a summary based on the following GitHub issue and replies.\n\n")
 	b.WriteString("## Issue\n")
 	b.WriteString("Repo: ")
 	b.WriteString(fallback(issue.Repo, "-"))
@@ -226,7 +226,7 @@ func buildSummaryPrompt(issue Issue, replies []IssueReply) string {
 		}
 	}
 
-	b.WriteString("请输出中文摘要，不要使用 markdown 列表。")
+	b.WriteString("Return the summary in English. Do not use markdown bullet lists.")
 	return b.String()
 }
 

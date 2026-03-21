@@ -198,6 +198,14 @@ func (s *IssueSyncAdminGRPCServer) UpdateIssueAISummary(ctx context.Context, req
 	return &issuesv1.GetIssueResponse{Issue: toProtoIssue(updated)}, nil
 }
 
+func (s *IssueSyncAdminGRPCServer) ClearIssueAISummaries(ctx context.Context, req *issuesv1.ClearIssueAISummariesRequest) (*issuesv1.ClearIssueAISummariesResponse, error) {
+	cleared, err := s.store.ClearIssueAISummaries(ctx, req.GetRepo())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "clear issue ai summaries: %v", err)
+	}
+	return &issuesv1.ClearIssueAISummariesResponse{Cleared: int32(cleared)}, nil
+}
+
 func toProtoManagedRepos(repos []dao.ManagedRepo) []*issuesv1.ManagedSyncRepo {
 	out := make([]*issuesv1.ManagedSyncRepo, 0, len(repos))
 	for _, repo := range repos {

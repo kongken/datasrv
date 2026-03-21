@@ -27,6 +27,7 @@ const (
 	IssueSyncAdminService_ReplaceManagedSyncRepos_FullMethodName = "/issues.v1.IssueSyncAdminService/ReplaceManagedSyncRepos"
 	IssueSyncAdminService_GetSyncStatus_FullMethodName           = "/issues.v1.IssueSyncAdminService/GetSyncStatus"
 	IssueSyncAdminService_UpdateIssueAISummary_FullMethodName    = "/issues.v1.IssueSyncAdminService/UpdateIssueAISummary"
+	IssueSyncAdminService_ClearIssueAISummaries_FullMethodName   = "/issues.v1.IssueSyncAdminService/ClearIssueAISummaries"
 )
 
 // IssueSyncAdminServiceClient is the client API for IssueSyncAdminService service.
@@ -40,6 +41,7 @@ type IssueSyncAdminServiceClient interface {
 	ReplaceManagedSyncRepos(ctx context.Context, in *ReplaceManagedSyncReposRequest, opts ...grpc.CallOption) (*ListManagedSyncReposResponse, error)
 	GetSyncStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetSyncStatusResponse, error)
 	UpdateIssueAISummary(ctx context.Context, in *UpdateIssueAISummaryRequest, opts ...grpc.CallOption) (*GetIssueResponse, error)
+	ClearIssueAISummaries(ctx context.Context, in *ClearIssueAISummariesRequest, opts ...grpc.CallOption) (*ClearIssueAISummariesResponse, error)
 }
 
 type issueSyncAdminServiceClient struct {
@@ -120,6 +122,16 @@ func (c *issueSyncAdminServiceClient) UpdateIssueAISummary(ctx context.Context, 
 	return out, nil
 }
 
+func (c *issueSyncAdminServiceClient) ClearIssueAISummaries(ctx context.Context, in *ClearIssueAISummariesRequest, opts ...grpc.CallOption) (*ClearIssueAISummariesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearIssueAISummariesResponse)
+	err := c.cc.Invoke(ctx, IssueSyncAdminService_ClearIssueAISummaries_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IssueSyncAdminServiceServer is the server API for IssueSyncAdminService service.
 // All implementations must embed UnimplementedIssueSyncAdminServiceServer
 // for forward compatibility.
@@ -131,6 +143,7 @@ type IssueSyncAdminServiceServer interface {
 	ReplaceManagedSyncRepos(context.Context, *ReplaceManagedSyncReposRequest) (*ListManagedSyncReposResponse, error)
 	GetSyncStatus(context.Context, *emptypb.Empty) (*GetSyncStatusResponse, error)
 	UpdateIssueAISummary(context.Context, *UpdateIssueAISummaryRequest) (*GetIssueResponse, error)
+	ClearIssueAISummaries(context.Context, *ClearIssueAISummariesRequest) (*ClearIssueAISummariesResponse, error)
 	mustEmbedUnimplementedIssueSyncAdminServiceServer()
 }
 
@@ -161,6 +174,9 @@ func (UnimplementedIssueSyncAdminServiceServer) GetSyncStatus(context.Context, *
 }
 func (UnimplementedIssueSyncAdminServiceServer) UpdateIssueAISummary(context.Context, *UpdateIssueAISummaryRequest) (*GetIssueResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateIssueAISummary not implemented")
+}
+func (UnimplementedIssueSyncAdminServiceServer) ClearIssueAISummaries(context.Context, *ClearIssueAISummariesRequest) (*ClearIssueAISummariesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClearIssueAISummaries not implemented")
 }
 func (UnimplementedIssueSyncAdminServiceServer) mustEmbedUnimplementedIssueSyncAdminServiceServer() {}
 func (UnimplementedIssueSyncAdminServiceServer) testEmbeddedByValue()                               {}
@@ -309,6 +325,24 @@ func _IssueSyncAdminService_UpdateIssueAISummary_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IssueSyncAdminService_ClearIssueAISummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearIssueAISummariesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueSyncAdminServiceServer).ClearIssueAISummaries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueSyncAdminService_ClearIssueAISummaries_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueSyncAdminServiceServer).ClearIssueAISummaries(ctx, req.(*ClearIssueAISummariesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IssueSyncAdminService_ServiceDesc is the grpc.ServiceDesc for IssueSyncAdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -343,6 +377,10 @@ var IssueSyncAdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateIssueAISummary",
 			Handler:    _IssueSyncAdminService_UpdateIssueAISummary_Handler,
+		},
+		{
+			MethodName: "ClearIssueAISummaries",
+			Handler:    _IssueSyncAdminService_ClearIssueAISummaries_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

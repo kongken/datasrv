@@ -71,6 +71,7 @@ type SyncStore interface {
 	UpsertIssues(ctx context.Context, repo string, issues []SyncedIssue) (int, error)
 	ListIssues(ctx context.Context, filter SyncIssueFilter) ([]SyncedIssue, error)
 	UpdateIssueAISummary(ctx context.Context, repo string, issueID int64, number int32, summary string) (SyncedIssue, error)
+	ClearIssueAISummaries(ctx context.Context, repo string) (int, error)
 	ListManagedRepos(ctx context.Context) ([]ManagedRepo, error)
 	ReplaceManagedRepos(ctx context.Context, repos []string) ([]ManagedRepo, error)
 	GetRepoCheckpoint(ctx context.Context, repo string) (Checkpoint, error)

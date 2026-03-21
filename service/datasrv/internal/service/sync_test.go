@@ -172,6 +172,39 @@ func (f *fakeSyncStore) UpdateIssueAISummary(_ context.Context, repo string, iss
 	return dao.SyncedIssue{}, dao.ErrIssueNotFound
 }
 
+func (f *fakeSyncStore) ClearIssueAISummaries(_ context.Context, repo string) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	cleared := 0
+	if repo != "" {
+		rows := f.issues[repo]
+		for i, row := range rows {
+			if row.AISummary == "" {
+				continue
+			}
+			row.AISummary = ""
+			rows[i] = row
+			cleared++
+		}
+		f.issues[repo] = rows
+		return cleared, nil
+	}
+
+	for key, rows := range f.issues {
+		for i, row := range rows {
+			if row.AISummary == "" {
+				continue
+			}
+			row.AISummary = ""
+			rows[i] = row
+			cleared++
+		}
+		f.issues[key] = rows
+	}
+	return cleared, nil
+}
+
 func (f *fakeSyncStore) SaveRepoCheckpoint(_ context.Context, checkpoint dao.Checkpoint) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

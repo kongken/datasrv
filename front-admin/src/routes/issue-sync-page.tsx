@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
+  clearIssueAISummaries,
   getManagedSyncRepos,
   getSyncConfig,
   getSyncStatus,
@@ -105,6 +106,13 @@ export function IssueSyncPage() {
     mutationFn: (repo?: string) => triggerIssueSync(repo),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["issue-sync-status"] });
+    },
+  });
+  const clearAISummaryMutation = useMutation({
+    mutationFn: (repo?: string) => clearIssueAISummaries(repo),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["issues"] });
+      await queryClient.invalidateQueries({ queryKey: ["issue-detail"] });
     },
   });
 
@@ -217,6 +225,37 @@ export function IssueSyncPage() {
                   </div>
                 ))}
               </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>清空 AI Summary</CardTitle>
+            <CardDescription>repo 留空时清空全部受管仓库的 issue AI 摘要，用于后续重新生成 summary。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <form
+              className="space-y-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const formData = new FormData(event.currentTarget);
+                void clearAISummaryMutation.mutateAsync(String(formData.get("repo") ?? ""));
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="clear-ai-summary-repo">Repo</Label>
+                <Input id="clear-ai-summary-repo" name="repo" placeholder="owner/repo，可留空" />
+              </div>
+              <Button type="submit" variant="outline" disabled={clearAISummaryMutation.isPending}>
+                {clearAISummaryMutation.isPending ? "清空中..." : "清空 AI Summary"}
+              </Button>
+            </form>
+            {clearAISummaryMutation.data ? (
+              <p className="text-sm text-muted-foreground">已清空 {clearAISummaryMutation.data.cleared} 条 issue 的 AI summary。</p>
+            ) : null}
+            {clearAISummaryMutation.error ? (
+              <p className="text-sm text-rose-700">清空失败：{clearAISummaryMutation.error.message}</p>
             ) : null}
           </CardContent>
         </Card>

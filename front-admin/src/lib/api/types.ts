@@ -48,6 +48,7 @@ export type IssueMilestone = {
 
 export type Issue = {
   id: number;
+  repo: string;
   number: number;
   title: string;
   body: string;

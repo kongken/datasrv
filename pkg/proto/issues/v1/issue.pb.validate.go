@@ -3018,6 +3018,216 @@ var _ interface {
 	ErrorName() string
 } = UpdateIssueAISummaryRequestValidationError{}
 
+// Validate checks the field values on ClearIssueAISummariesRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ClearIssueAISummariesRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ClearIssueAISummariesRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ClearIssueAISummariesRequestMultiError, or nil if none found.
+func (m *ClearIssueAISummariesRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClearIssueAISummariesRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Repo
+
+	if len(errors) > 0 {
+		return ClearIssueAISummariesRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClearIssueAISummariesRequestMultiError is an error wrapping multiple
+// validation errors returned by ClearIssueAISummariesRequest.ValidateAll() if
+// the designated constraints aren't met.
+type ClearIssueAISummariesRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClearIssueAISummariesRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClearIssueAISummariesRequestMultiError) AllErrors() []error { return m }
+
+// ClearIssueAISummariesRequestValidationError is the validation error returned
+// by ClearIssueAISummariesRequest.Validate if the designated constraints
+// aren't met.
+type ClearIssueAISummariesRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClearIssueAISummariesRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClearIssueAISummariesRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClearIssueAISummariesRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClearIssueAISummariesRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClearIssueAISummariesRequestValidationError) ErrorName() string {
+	return "ClearIssueAISummariesRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClearIssueAISummariesRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClearIssueAISummariesRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClearIssueAISummariesRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClearIssueAISummariesRequestValidationError{}
+
+// Validate checks the field values on ClearIssueAISummariesResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ClearIssueAISummariesResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ClearIssueAISummariesResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// ClearIssueAISummariesResponseMultiError, or nil if none found.
+func (m *ClearIssueAISummariesResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClearIssueAISummariesResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Cleared
+
+	if len(errors) > 0 {
+		return ClearIssueAISummariesResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClearIssueAISummariesResponseMultiError is an error wrapping multiple
+// validation errors returned by ClearIssueAISummariesResponse.ValidateAll()
+// if the designated constraints aren't met.
+type ClearIssueAISummariesResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClearIssueAISummariesResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClearIssueAISummariesResponseMultiError) AllErrors() []error { return m }
+
+// ClearIssueAISummariesResponseValidationError is the validation error
+// returned by ClearIssueAISummariesResponse.Validate if the designated
+// constraints aren't met.
+type ClearIssueAISummariesResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClearIssueAISummariesResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClearIssueAISummariesResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClearIssueAISummariesResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClearIssueAISummariesResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClearIssueAISummariesResponseValidationError) ErrorName() string {
+	return "ClearIssueAISummariesResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClearIssueAISummariesResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClearIssueAISummariesResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClearIssueAISummariesResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClearIssueAISummariesResponseValidationError{}
+
 // Validate checks the field values on AdminLoginRequest with the rules defined
 // in the proto definition for this message. If any rules are violated, the
 // first error encountered is returned, or nil if there are no violations.

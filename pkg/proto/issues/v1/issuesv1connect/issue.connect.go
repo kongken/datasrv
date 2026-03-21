@@ -59,6 +59,9 @@ const (
 	// IssueSyncAdminServiceUpdateIssueAISummaryProcedure is the fully-qualified name of the
 	// IssueSyncAdminService's UpdateIssueAISummary RPC.
 	IssueSyncAdminServiceUpdateIssueAISummaryProcedure = "/issues.v1.IssueSyncAdminService/UpdateIssueAISummary"
+	// IssueSyncAdminServiceClearIssueAISummariesProcedure is the fully-qualified name of the
+	// IssueSyncAdminService's ClearIssueAISummaries RPC.
+	IssueSyncAdminServiceClearIssueAISummariesProcedure = "/issues.v1.IssueSyncAdminService/ClearIssueAISummaries"
 	// IssueQueryServiceListIssuesProcedure is the fully-qualified name of the IssueQueryService's
 	// ListIssues RPC.
 	IssueQueryServiceListIssuesProcedure = "/issues.v1.IssueQueryService/ListIssues"
@@ -85,6 +88,7 @@ type IssueSyncAdminServiceClient interface {
 	ReplaceManagedSyncRepos(context.Context, *connect.Request[v1.ReplaceManagedSyncReposRequest]) (*connect.Response[v1.ListManagedSyncReposResponse], error)
 	GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error)
 	UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error)
+	ClearIssueAISummaries(context.Context, *connect.Request[v1.ClearIssueAISummariesRequest]) (*connect.Response[v1.ClearIssueAISummariesResponse], error)
 }
 
 // NewIssueSyncAdminServiceClient constructs a client for the issues.v1.IssueSyncAdminService
@@ -140,6 +144,12 @@ func NewIssueSyncAdminServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(issueSyncAdminServiceMethods.ByName("UpdateIssueAISummary")),
 			connect.WithClientOptions(opts...),
 		),
+		clearIssueAISummaries: connect.NewClient[v1.ClearIssueAISummariesRequest, v1.ClearIssueAISummariesResponse](
+			httpClient,
+			baseURL+IssueSyncAdminServiceClearIssueAISummariesProcedure,
+			connect.WithSchema(issueSyncAdminServiceMethods.ByName("ClearIssueAISummaries")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -152,6 +162,7 @@ type issueSyncAdminServiceClient struct {
 	replaceManagedSyncRepos *connect.Client[v1.ReplaceManagedSyncReposRequest, v1.ListManagedSyncReposResponse]
 	getSyncStatus           *connect.Client[emptypb.Empty, v1.GetSyncStatusResponse]
 	updateIssueAISummary    *connect.Client[v1.UpdateIssueAISummaryRequest, v1.GetIssueResponse]
+	clearIssueAISummaries   *connect.Client[v1.ClearIssueAISummariesRequest, v1.ClearIssueAISummariesResponse]
 }
 
 // SyncIssues calls issues.v1.IssueSyncAdminService.SyncIssues.
@@ -189,6 +200,11 @@ func (c *issueSyncAdminServiceClient) UpdateIssueAISummary(ctx context.Context, 
 	return c.updateIssueAISummary.CallUnary(ctx, req)
 }
 
+// ClearIssueAISummaries calls issues.v1.IssueSyncAdminService.ClearIssueAISummaries.
+func (c *issueSyncAdminServiceClient) ClearIssueAISummaries(ctx context.Context, req *connect.Request[v1.ClearIssueAISummariesRequest]) (*connect.Response[v1.ClearIssueAISummariesResponse], error) {
+	return c.clearIssueAISummaries.CallUnary(ctx, req)
+}
+
 // IssueSyncAdminServiceHandler is an implementation of the issues.v1.IssueSyncAdminService service.
 type IssueSyncAdminServiceHandler interface {
 	SyncIssues(context.Context, *connect.Request[v1.SyncIssuesRequest]) (*connect.Response[v1.SyncIssuesResponse], error)
@@ -198,6 +214,7 @@ type IssueSyncAdminServiceHandler interface {
 	ReplaceManagedSyncRepos(context.Context, *connect.Request[v1.ReplaceManagedSyncReposRequest]) (*connect.Response[v1.ListManagedSyncReposResponse], error)
 	GetSyncStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.GetSyncStatusResponse], error)
 	UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error)
+	ClearIssueAISummaries(context.Context, *connect.Request[v1.ClearIssueAISummariesRequest]) (*connect.Response[v1.ClearIssueAISummariesResponse], error)
 }
 
 // NewIssueSyncAdminServiceHandler builds an HTTP handler from the service implementation. It
@@ -249,6 +266,12 @@ func NewIssueSyncAdminServiceHandler(svc IssueSyncAdminServiceHandler, opts ...c
 		connect.WithSchema(issueSyncAdminServiceMethods.ByName("UpdateIssueAISummary")),
 		connect.WithHandlerOptions(opts...),
 	)
+	issueSyncAdminServiceClearIssueAISummariesHandler := connect.NewUnaryHandler(
+		IssueSyncAdminServiceClearIssueAISummariesProcedure,
+		svc.ClearIssueAISummaries,
+		connect.WithSchema(issueSyncAdminServiceMethods.ByName("ClearIssueAISummaries")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/issues.v1.IssueSyncAdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IssueSyncAdminServiceSyncIssuesProcedure:
@@ -265,6 +288,8 @@ func NewIssueSyncAdminServiceHandler(svc IssueSyncAdminServiceHandler, opts ...c
 			issueSyncAdminServiceGetSyncStatusHandler.ServeHTTP(w, r)
 		case IssueSyncAdminServiceUpdateIssueAISummaryProcedure:
 			issueSyncAdminServiceUpdateIssueAISummaryHandler.ServeHTTP(w, r)
+		case IssueSyncAdminServiceClearIssueAISummariesProcedure:
+			issueSyncAdminServiceClearIssueAISummariesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -300,6 +325,10 @@ func (UnimplementedIssueSyncAdminServiceHandler) GetSyncStatus(context.Context, 
 
 func (UnimplementedIssueSyncAdminServiceHandler) UpdateIssueAISummary(context.Context, *connect.Request[v1.UpdateIssueAISummaryRequest]) (*connect.Response[v1.GetIssueResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.UpdateIssueAISummary is not implemented"))
+}
+
+func (UnimplementedIssueSyncAdminServiceHandler) ClearIssueAISummaries(context.Context, *connect.Request[v1.ClearIssueAISummariesRequest]) (*connect.Response[v1.ClearIssueAISummariesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueSyncAdminService.ClearIssueAISummaries is not implemented"))
 }
 
 // IssueQueryServiceClient is a client for the issues.v1.IssueQueryService service.

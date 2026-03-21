@@ -245,6 +245,16 @@ message UpdateIssueAISummaryRequest {
   string ai_summary = 4;
 }
 
+message ClearIssueAISummariesRequest {
+  // Optional: clear a single repository in owner/repo format.
+  // Empty means clear all managed repositories.
+  string repo = 1;
+}
+
+message ClearIssueAISummariesResponse {
+  int32 cleared = 1;
+}
+
 message AdminLoginRequest {
   string user = 1;
   string password = 2;
@@ -310,6 +320,12 @@ service IssueSyncAdminService {
   rpc UpdateIssueAISummary(UpdateIssueAISummaryRequest) returns (GetIssueResponse) {
     option (google.api.http) = {
       patch: "/api/v1/admin/issues/ai-summary"
+      body: "*"
+    };
+  }
+  rpc ClearIssueAISummaries(ClearIssueAISummariesRequest) returns (ClearIssueAISummariesResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/issues/ai-summary:clear"
       body: "*"
     };
   }

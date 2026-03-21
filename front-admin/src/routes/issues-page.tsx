@@ -107,7 +107,7 @@ export function IssuesPage() {
                           <div className="space-y-1">
                             <Link
                               className="font-medium text-primary underline-offset-4 hover:underline"
-                              to={`/issues/detail?repo=${encodeURIComponent(repo || "")}&number=${issue.number}`}
+                              to={`/issues/detail?repo=${encodeURIComponent(issue.repo)}&number=${issue.number}`}
                             >
                               #{issue.number} {issue.title}
                             </Link>
