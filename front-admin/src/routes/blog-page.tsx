@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { z } from "zod";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   createBlogComment,
-  createBlogPost,
   deleteBlogComment,
   deleteBlogPost,
   listBlogComments,
@@ -149,25 +149,6 @@ export function BlogPage() {
     await queryClient.invalidateQueries({ queryKey: ["blog-posts"] });
   };
 
-  const createPostMutation = useMutation({
-    mutationFn: (values: PostFormValues) =>
-      createBlogPost({
-        post: {
-          title: values.title,
-          slug: values.slug,
-          summary: values.summary ?? "",
-          content: values.content,
-          tags: splitTags(values.tags),
-          status: values.status,
-          publishedAt: undefined,
-        },
-      }),
-    onSuccess: async (created) => {
-      setSelectedPost(created);
-      await refreshPosts();
-    },
-  });
-
   const updatePostMutation = useMutation({
     mutationFn: (values: PostFormValues) =>
       updateBlogPost({
@@ -250,15 +231,9 @@ export function BlogPage() {
         title="Blog 管理"
         description="管理博客文章与评论，支持筛选、编辑、发布与评论审核。"
         actions={
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSelectedPost(null);
-              setSelectedComment(null);
-            }}
-          >
-            新建文章
-          </Button>
+          <Link to="/blog/new">
+            <Button variant="outline">新建文章</Button>
+          </Link>
         }
       />
 
@@ -343,56 +318,53 @@ export function BlogPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>{selectedPost ? "编辑文章" : "新建文章"}</CardTitle>
+              <CardTitle>文章编辑</CardTitle>
+              <CardDescription>仅编辑已选文章。新建文章请前往独立页面。</CardDescription>
             </CardHeader>
             <CardContent>
-              <form
-                className="space-y-4"
-                onSubmit={postForm.handleSubmit(async (values) => {
-                  if (values.id) {
+              {selectedPost ? (
+                <form
+                  className="space-y-4"
+                  onSubmit={postForm.handleSubmit(async (values) => {
                     await updatePostMutation.mutateAsync(values);
-                    return;
-                  }
-                  await createPostMutation.mutateAsync(values);
-                })}
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input id="title" {...postForm.register("title")} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="slug">Slug</Label>
-                  <Input id="slug" {...postForm.register("slug")} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    {...postForm.register("status")}
-                  >
-                    <option value="draft">draft</option>
-                    <option value="published">published</option>
-                    <option value="archived">archived</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tags">Tags</Label>
-                  <Input id="tags" placeholder="golang, grpc, backend" {...postForm.register("tags")} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="summary">Summary</Label>
-                  <Textarea id="summary" rows={3} {...postForm.register("summary")} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="content">Content</Label>
-                  <Textarea id="content" rows={8} {...postForm.register("content")} />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={createPostMutation.isPending || updatePostMutation.isPending}>
-                    {selectedPost ? "保存更新" : "创建文章"}
-                  </Button>
-                  {selectedPost ? (
+                  })}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Input id="title" {...postForm.register("title")} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="slug">Slug</Label>
+                    <Input id="slug" {...postForm.register("slug")} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <select
+                      id="status"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      {...postForm.register("status")}
+                    >
+                      <option value="draft">draft</option>
+                      <option value="published">published</option>
+                      <option value="archived">archived</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tags">Tags</Label>
+                    <Input id="tags" placeholder="golang, grpc, backend" {...postForm.register("tags")} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="summary">Summary</Label>
+                    <Textarea id="summary" rows={3} {...postForm.register("summary")} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="content">Content</Label>
+                    <Textarea id="content" rows={8} {...postForm.register("content")} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={updatePostMutation.isPending}>
+                      保存更新
+                    </Button>
                     <Button
                       type="button"
                       variant="destructive"
@@ -405,9 +377,16 @@ export function BlogPage() {
                     >
                       删除
                     </Button>
-                  ) : null}
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">请选择左侧文章进行编辑，或前往新建页面创建文章。</p>
+                  <Link to="/blog/new">
+                    <Button variant="outline">去新建文章</Button>
+                  </Link>
                 </div>
-              </form>
+              )}
             </CardContent>
           </Card>
 
