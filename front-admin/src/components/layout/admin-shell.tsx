@@ -1,4 +1,4 @@
-import { Database, FileText, LayoutGrid, LogOut, RefreshCw } from "lucide-react";
+import { BookOpenText, Database, FileText, LayoutGrid, LogOut, RefreshCw } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -9,6 +9,7 @@ const navItems = [
   { to: "/issues", label: "Issues", icon: FileText },
   { to: "/issue-sync", label: "Issue Sync", icon: RefreshCw },
   { to: "/feed-sources", label: "Feed Sources", icon: Database },
+  { to: "/blog", label: "Blog", icon: BookOpenText },
 ];
 
 export function AdminShell() {
