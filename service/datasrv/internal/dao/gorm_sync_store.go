@@ -104,6 +104,35 @@ type gormFeedCheckpoint struct {
 
 func (gormFeedCheckpoint) TableName() string { return "rss_feed_checkpoints" }
 
+type gormBlogPost struct {
+	ID           string    `gorm:"primaryKey;size:64"`
+	Title        string    `gorm:"type:text;not null"`
+	Slug         string    `gorm:"size:255;not null;uniqueIndex"`
+	Summary      string    `gorm:"type:text"`
+	Content      string    `gorm:"type:text"`
+	TagsJSON     string    `gorm:"type:text"`
+	Status       string    `gorm:"size:32;index;not null"`
+	CommentCount int32     `gorm:"not null"`
+	CreatedAt    time.Time `gorm:"index"`
+	UpdatedAt    time.Time `gorm:"index"`
+	PublishedAt  time.Time `gorm:"index"`
+}
+
+func (gormBlogPost) TableName() string { return "blog_posts" }
+
+type gormBlogComment struct {
+	ID          string    `gorm:"primaryKey;size:64"`
+	PostID      string    `gorm:"index:idx_blog_comments_post_created;size:64;not null"`
+	AuthorName  string    `gorm:"size:255;not null"`
+	AuthorEmail string    `gorm:"size:255"`
+	Content     string    `gorm:"type:text;not null"`
+	Status      string    `gorm:"size:32;index;not null"`
+	CreatedAt   time.Time `gorm:"index:idx_blog_comments_post_created"`
+	UpdatedAt   time.Time `gorm:"index"`
+}
+
+func (gormBlogComment) TableName() string { return "blog_comments" }
+
 // GormSyncStore stores synced issue data in PostgreSQL via GORM.
 type GormSyncStore struct {
 	db *gorm.DB
@@ -119,7 +148,7 @@ func NewGormSyncStore(dsn string) (*GormSyncStore, error) {
 		return nil, fmt.Errorf("open gorm postgres: %w", err)
 	}
 
-	if err := db.AutoMigrate(&gormIssue{}, &gormCheckpoint{}, &gormManagedRepo{}, &gormFeedSource{}, &gormFeedContent{}, &gormFeedCheckpoint{}); err != nil {
+	if err := db.AutoMigrate(&gormIssue{}, &gormCheckpoint{}, &gormManagedRepo{}, &gormFeedSource{}, &gormFeedContent{}, &gormFeedCheckpoint{}, &gormBlogPost{}, &gormBlogComment{}); err != nil {
 		return nil, fmt.Errorf("gorm automigrate: %w", err)
 	}
 
@@ -128,6 +157,9 @@ func NewGormSyncStore(dsn string) (*GormSyncStore, error) {
 	}
 	if err := db.Exec("CREATE INDEX IF NOT EXISTS idx_rss_feed_contents_source_published_at ON rss_feed_contents (feed_source_id, published_at DESC, id ASC)").Error; err != nil {
 		return nil, fmt.Errorf("create feed content index: %w", err)
+	}
+	if err := db.Exec("CREATE INDEX IF NOT EXISTS idx_blog_comments_post_status_created_at ON blog_comments (post_id, status, created_at ASC, id ASC)").Error; err != nil {
+		return nil, fmt.Errorf("create blog comment index: %w", err)
 	}
 
 	return &GormSyncStore{db: db}, nil
@@ -539,6 +571,350 @@ func (g *GormSyncStore) DeleteFeedSource(ctx context.Context, id string) error {
 		return ErrFeedSourceNotFound
 	}
 	return nil
+}
+
+func (g *GormSyncStore) ListBlogPosts(ctx context.Context, filter BlogPostFilter) ([]BlogPost, error) {
+	query := g.db.WithContext(ctx).Model(&gormBlogPost{})
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+	if filter.Tag != "" {
+		tagPattern, err := json.Marshal(filter.Tag)
+		if err != nil {
+			return nil, fmt.Errorf("marshal blog tag: %w", err)
+		}
+		query = query.Where("tags_json LIKE ?", "%"+strings.Trim(string(tagPattern), "\"")+"%")
+	}
+	if queryText := strings.TrimSpace(filter.Query); queryText != "" {
+		like := "%" + queryText + "%"
+		query = query.Where("title ILIKE ? OR slug ILIKE ? OR summary ILIKE ? OR content ILIKE ?", like, like, like, like)
+	}
+	if filter.Offset > 0 {
+		query = query.Offset(filter.Offset)
+	}
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+
+	var rows []gormBlogPost
+	if err := query.Order("published_at DESC").Order("created_at DESC").Order("id ASC").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("gorm list blog posts: %w", err)
+	}
+
+	out := make([]BlogPost, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, toBlogPost(row))
+	}
+	return out, nil
+}
+
+func (g *GormSyncStore) GetBlogPost(ctx context.Context, id string) (BlogPost, error) {
+	var row gormBlogPost
+	if err := g.db.WithContext(ctx).Where("id = ?", id).First(&row).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return BlogPost{}, ErrBlogPostNotFound
+		}
+		return BlogPost{}, fmt.Errorf("gorm get blog post: %w", err)
+	}
+	return toBlogPost(row), nil
+}
+
+func (g *GormSyncStore) GetBlogPostBySlug(ctx context.Context, slug string) (BlogPost, error) {
+	var row gormBlogPost
+	if err := g.db.WithContext(ctx).Where("slug = ?", slug).First(&row).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return BlogPost{}, ErrBlogPostNotFound
+		}
+		return BlogPost{}, fmt.Errorf("gorm get blog post by slug: %w", err)
+	}
+	return toBlogPost(row), nil
+}
+
+func (g *GormSyncStore) CreateBlogPost(ctx context.Context, post BlogPost) (BlogPost, error) {
+	now := time.Now().UTC()
+	if post.ID == "" {
+		return BlogPost{}, fmt.Errorf("blog post id is empty")
+	}
+	if post.CreatedAt.IsZero() {
+		post.CreatedAt = now
+	}
+	post.UpdatedAt = now
+	row, err := toGormBlogPost(post)
+	if err != nil {
+		return BlogPost{}, err
+	}
+	if err := g.db.WithContext(ctx).Create(&row).Error; err != nil {
+		if isUniqueViolation(err) {
+			return BlogPost{}, ErrBlogPostSlugConflict
+		}
+		return BlogPost{}, fmt.Errorf("gorm create blog post: %w", err)
+	}
+	return toBlogPost(row), nil
+}
+
+func (g *GormSyncStore) UpdateBlogPost(ctx context.Context, post BlogPost) (BlogPost, error) {
+	var existing gormBlogPost
+	if err := g.db.WithContext(ctx).Where("id = ?", post.ID).First(&existing).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return BlogPost{}, ErrBlogPostNotFound
+		}
+		return BlogPost{}, fmt.Errorf("gorm load blog post before update: %w", err)
+	}
+
+	post.CreatedAt = existing.CreatedAt
+	post.CommentCount = existing.CommentCount
+	post.UpdatedAt = time.Now().UTC()
+	row, err := toGormBlogPost(post)
+	if err != nil {
+		return BlogPost{}, err
+	}
+	if err := g.db.WithContext(ctx).Model(&gormBlogPost{}).Where("id = ?", post.ID).Updates(map[string]any{
+		"title":         row.Title,
+		"slug":          row.Slug,
+		"summary":       row.Summary,
+		"content":       row.Content,
+		"tags_json":     row.TagsJSON,
+		"status":        row.Status,
+		"updated_at":    row.UpdatedAt,
+		"published_at":  row.PublishedAt,
+		"comment_count": row.CommentCount,
+	}).Error; err != nil {
+		if isUniqueViolation(err) {
+			return BlogPost{}, ErrBlogPostSlugConflict
+		}
+		return BlogPost{}, fmt.Errorf("gorm update blog post: %w", err)
+	}
+	return g.GetBlogPost(ctx, post.ID)
+}
+
+func (g *GormSyncStore) DeleteBlogPost(ctx context.Context, id string) error {
+	tx := g.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("gorm begin delete blog post: %w", tx.Error)
+	}
+	if err := tx.Where("post_id = ?", id).Delete(&gormBlogComment{}).Error; err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("gorm delete blog comments: %w", err)
+	}
+	result := tx.Where("id = ?", id).Delete(&gormBlogPost{})
+	if result.Error != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("gorm delete blog post: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		_ = tx.Rollback()
+		return ErrBlogPostNotFound
+	}
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("gorm commit delete blog post: %w", err)
+	}
+	return nil
+}
+
+func (g *GormSyncStore) ListBlogComments(ctx context.Context, filter BlogCommentFilter) ([]BlogComment, error) {
+	query := g.db.WithContext(ctx).Model(&gormBlogComment{})
+	if filter.PostID != "" {
+		query = query.Where("post_id = ?", filter.PostID)
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+	if filter.Offset > 0 {
+		query = query.Offset(filter.Offset)
+	}
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+
+	var rows []gormBlogComment
+	if err := query.Order("created_at ASC").Order("id ASC").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("gorm list blog comments: %w", err)
+	}
+	out := make([]BlogComment, 0, len(rows))
+	for _, row := range rows {
+		comment, err := g.toBlogComment(ctx, row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, comment)
+	}
+	return out, nil
+}
+
+func (g *GormSyncStore) GetBlogComment(ctx context.Context, id string) (BlogComment, error) {
+	var row gormBlogComment
+	if err := g.db.WithContext(ctx).Where("id = ?", id).First(&row).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return BlogComment{}, ErrBlogCommentNotFound
+		}
+		return BlogComment{}, fmt.Errorf("gorm get blog comment: %w", err)
+	}
+	return g.toBlogComment(ctx, row)
+}
+
+func (g *GormSyncStore) CreateBlogComment(ctx context.Context, comment BlogComment) (BlogComment, error) {
+	tx := g.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return BlogComment{}, fmt.Errorf("gorm begin create blog comment: %w", tx.Error)
+	}
+
+	var post gormBlogPost
+	if err := tx.Where("id = ?", comment.PostID).First(&post).Error; err != nil {
+		_ = tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			return BlogComment{}, ErrBlogCommentPostAbsent
+		}
+		return BlogComment{}, fmt.Errorf("gorm load blog post before create comment: %w", err)
+	}
+
+	now := time.Now().UTC()
+	if comment.CreatedAt.IsZero() {
+		comment.CreatedAt = now
+	}
+	comment.UpdatedAt = now
+	row := gormBlogComment{
+		ID:          comment.ID,
+		PostID:      comment.PostID,
+		AuthorName:  comment.AuthorName,
+		AuthorEmail: comment.AuthorEmail,
+		Content:     comment.Content,
+		Status:      comment.Status,
+		CreatedAt:   comment.CreatedAt,
+		UpdatedAt:   comment.UpdatedAt,
+	}
+	if err := tx.Create(&row).Error; err != nil {
+		_ = tx.Rollback()
+		return BlogComment{}, fmt.Errorf("gorm create blog comment: %w", err)
+	}
+	if err := tx.Model(&gormBlogPost{}).Where("id = ?", post.ID).Updates(map[string]any{
+		"comment_count": gorm.Expr("comment_count + ?", 1),
+		"updated_at":    now,
+	}).Error; err != nil {
+		_ = tx.Rollback()
+		return BlogComment{}, fmt.Errorf("gorm update blog post comment count: %w", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		return BlogComment{}, fmt.Errorf("gorm commit create blog comment: %w", err)
+	}
+	comment.PostSlug = post.Slug
+	return comment, nil
+}
+
+func (g *GormSyncStore) UpdateBlogComment(ctx context.Context, comment BlogComment) (BlogComment, error) {
+	var existing gormBlogComment
+	if err := g.db.WithContext(ctx).Where("id = ?", comment.ID).First(&existing).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return BlogComment{}, ErrBlogCommentNotFound
+		}
+		return BlogComment{}, fmt.Errorf("gorm load blog comment before update: %w", err)
+	}
+	comment.PostID = existing.PostID
+	comment.CreatedAt = existing.CreatedAt
+	comment.UpdatedAt = time.Now().UTC()
+	if err := g.db.WithContext(ctx).Model(&gormBlogComment{}).Where("id = ?", comment.ID).Updates(map[string]any{
+		"author_name":  comment.AuthorName,
+		"author_email": comment.AuthorEmail,
+		"content":      comment.Content,
+		"status":       comment.Status,
+		"updated_at":   comment.UpdatedAt,
+	}).Error; err != nil {
+		return BlogComment{}, fmt.Errorf("gorm update blog comment: %w", err)
+	}
+	return g.GetBlogComment(ctx, comment.ID)
+}
+
+func (g *GormSyncStore) DeleteBlogComment(ctx context.Context, id string) error {
+	tx := g.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("gorm begin delete blog comment: %w", tx.Error)
+	}
+	var row gormBlogComment
+	if err := tx.Where("id = ?", id).First(&row).Error; err != nil {
+		_ = tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			return ErrBlogCommentNotFound
+		}
+		return fmt.Errorf("gorm load blog comment before delete: %w", err)
+	}
+	if err := tx.Where("id = ?", id).Delete(&gormBlogComment{}).Error; err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("gorm delete blog comment: %w", err)
+	}
+	if err := tx.Model(&gormBlogPost{}).Where("id = ?", row.PostID).Updates(map[string]any{
+		"comment_count": gorm.Expr("GREATEST(comment_count - ?, 0)", 1),
+		"updated_at":    time.Now().UTC(),
+	}).Error; err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("gorm decrement blog post comment count: %w", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("gorm commit delete blog comment: %w", err)
+	}
+	return nil
+}
+
+func toGormBlogPost(post BlogPost) (gormBlogPost, error) {
+	tagsJSON, err := json.Marshal(post.Tags)
+	if err != nil {
+		return gormBlogPost{}, fmt.Errorf("marshal blog tags: %w", err)
+	}
+	return gormBlogPost{
+		ID:           post.ID,
+		Title:        post.Title,
+		Slug:         post.Slug,
+		Summary:      post.Summary,
+		Content:      post.Content,
+		TagsJSON:     string(tagsJSON),
+		Status:       post.Status,
+		CommentCount: post.CommentCount,
+		CreatedAt:    post.CreatedAt,
+		UpdatedAt:    post.UpdatedAt,
+		PublishedAt:  post.PublishedAt,
+	}, nil
+}
+
+func toBlogPost(row gormBlogPost) BlogPost {
+	var tags []string
+	_ = json.Unmarshal([]byte(row.TagsJSON), &tags)
+	return BlogPost{
+		ID:           row.ID,
+		Title:        row.Title,
+		Slug:         row.Slug,
+		Summary:      row.Summary,
+		Content:      row.Content,
+		Tags:         tags,
+		Status:       row.Status,
+		CommentCount: row.CommentCount,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+		PublishedAt:  row.PublishedAt,
+	}
+}
+
+func (g *GormSyncStore) toBlogComment(ctx context.Context, row gormBlogComment) (BlogComment, error) {
+	post, err := g.GetBlogPost(ctx, row.PostID)
+	if err != nil {
+		if err == ErrBlogPostNotFound {
+			return BlogComment{}, ErrBlogCommentPostAbsent
+		}
+		return BlogComment{}, err
+	}
+	return BlogComment{
+		ID:          row.ID,
+		PostID:      row.PostID,
+		PostSlug:    post.Slug,
+		AuthorName:  row.AuthorName,
+		AuthorEmail: row.AuthorEmail,
+		Content:     row.Content,
+		Status:      row.Status,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+	}, nil
+}
+
+func isUniqueViolation(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "duplicate key value") ||
+		strings.Contains(strings.ToLower(err.Error()), "unique constraint")
 }
 
 func (g *GormSyncStore) UpsertFeedContents(ctx context.Context, sourceID string, contents []FeedContent) (int, error) {

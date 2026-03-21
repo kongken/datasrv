@@ -3,6 +3,8 @@ import { createBrowserRouter, Navigate, useLocation } from "react-router-dom";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { useAuth } from "@/features/auth/auth-provider";
 import { DashboardPage } from "@/routes/dashboard-page";
+import { BlogNewPage } from "@/routes/blog-new-page";
+import { BlogPage } from "@/routes/blog-page";
 import { FeedSourcesPage } from "@/routes/feed-sources-page";
 import { IssueDetailPage } from "@/routes/issue-detail-page";
 import { IssuesPage } from "@/routes/issues-page";
@@ -52,6 +54,14 @@ export const router = createBrowserRouter([
       {
         path: "feed-sources",
         element: <FeedSourcesPage />,
+      },
+      {
+        path: "blog",
+        element: <BlogPage />,
+      },
+      {
+        path: "blog/new",
+        element: <BlogNewPage />,
       },
     ],
   },

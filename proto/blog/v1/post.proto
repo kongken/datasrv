@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package blog.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/kongken/datasrv/pkg/proto/blog/v1;blogv1";
+
+message BlogPost {
+  string id = 1;
+  string title = 2;
+  string slug = 3;
+  string summary = 4;
+  string content = 5;
+  repeated string tags = 6;
+  string status = 7;
+  int32 comment_count = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp published_at = 11;
+}
+
+message BlogComment {
+  string id = 1;
+  string post_id = 2;
+  string post_slug = 3;
+  string author_name = 4;
+  string author_email = 5;
+  string content = 6;
+  string status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListBlogPostsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string status = 3;
+  string tag = 4;
+  string query = 5;
+}
+
+message ListBlogPostsResponse {
+  repeated BlogPost posts = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool has_next = 4;
+}
+
+message GetBlogPostRequest {
+  string slug = 1;
+}
+
+message GetBlogPostResponse {
+  BlogPost post = 1;
+}
+
+message CreateBlogPostRequest {
+  BlogPost post = 1;
+}
+
+message UpdateBlogPostRequest {
+  BlogPost post = 1;
+}
+
+message DeleteBlogPostRequest {
+  string id = 1;
+}
+
+message DeleteBlogPostResponse {
+  string id = 1;
+}
+
+message ListBlogCommentsRequest {
+  string post_slug = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string status = 4;
+}
+
+message ListBlogCommentsResponse {
+  repeated BlogComment comments = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool has_next = 4;
+}
+
+message CreateBlogCommentRequest {
+  string post_slug = 1;
+  BlogComment comment = 2;
+}
+
+message GetBlogCommentRequest {
+  string id = 1;
+}
+
+message GetBlogCommentResponse {
+  BlogComment comment = 1;
+}
+
+message UpdateBlogCommentRequest {
+  BlogComment comment = 1;
+}
+
+message DeleteBlogCommentRequest {
+  string id = 1;
+}
+
+message DeleteBlogCommentResponse {
+  string id = 1;
+}
+
+service BlogQueryService {
+  rpc ListPosts(ListBlogPostsRequest) returns (ListBlogPostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/blog/posts"
+    };
+  }
+
+  rpc GetPost(GetBlogPostRequest) returns (GetBlogPostResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/blog/posts/{slug}"
+    };
+  }
+
+  rpc ListComments(ListBlogCommentsRequest) returns (ListBlogCommentsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/blog/posts/{post_slug}/comments"
+    };
+  }
+
+  rpc CreateComment(CreateBlogCommentRequest) returns (BlogComment) {
+    option (google.api.http) = {
+      post: "/api/v1/blog/posts/{post_slug}/comments"
+      body: "*"
+    };
+  }
+}
+
+service BlogAdminService {
+  rpc CreatePost(CreateBlogPostRequest) returns (BlogPost) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/blog/posts"
+      body: "*"
+    };
+  }
+
+  rpc UpdatePost(UpdateBlogPostRequest) returns (BlogPost) {
+    option (google.api.http) = {
+      patch: "/api/v1/admin/blog/posts"
+      body: "*"
+    };
+  }
+
+  rpc DeletePost(DeleteBlogPostRequest) returns (DeleteBlogPostResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/admin/blog/posts/{id}"
+    };
+  }
+
+  rpc GetComment(GetBlogCommentRequest) returns (GetBlogCommentResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/blog/comments/{id}"
+    };
+  }
+
+  rpc UpdateComment(UpdateBlogCommentRequest) returns (BlogComment) {
+    option (google.api.http) = {
+      patch: "/api/v1/admin/blog/comments"
+      body: "*"
+    };
+  }
+
+  rpc DeleteComment(DeleteBlogCommentRequest) returns (DeleteBlogCommentResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/admin/blog/comments/{id}"
+    };
+  }
+}

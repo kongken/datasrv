@@ -165,3 +165,43 @@ export type FeedSyncStatus = {
   lastResults: FeedSyncResult[];
   statuses: FeedSyncStatusItem[];
 };
+
+export type BlogPost = {
+  id: string;
+  title: string;
+  slug: string;
+  summary?: string;
+  content: string;
+  tags: string[];
+  status: string;
+  commentCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+};
+
+export type ListBlogPostsResponse = {
+  posts: BlogPost[];
+  page: number;
+  pageSize: number;
+  hasNext: boolean;
+};
+
+export type BlogComment = {
+  id: string;
+  postId: string;
+  postSlug: string;
+  authorName: string;
+  authorEmail?: string;
+  content: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ListBlogCommentsResponse = {
+  comments: BlogComment[];
+  page: number;
+  pageSize: number;
+  hasNext: boolean;
+};

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	blogv1 "github.com/kongken/datasrv/pkg/proto/blog/v1"
 	feedsv1 "github.com/kongken/datasrv/pkg/proto/feeds/v1"
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
 	"github.com/kongken/datasrv/service/datasrv/internal/conf"
@@ -32,6 +33,8 @@ func initGatewayHandler() error {
 		issuesv1.RegisterAdminAuthServiceHandlerFromEndpoint,
 		feedsv1.RegisterFeedSyncAdminServiceHandlerFromEndpoint,
 		feedsv1.RegisterFeedQueryServiceHandlerFromEndpoint,
+		blogv1.RegisterBlogAdminServiceHandlerFromEndpoint,
+		blogv1.RegisterBlogQueryServiceHandlerFromEndpoint,
 	)
 	if err != nil {
 		return fmt.Errorf("init grpc gateway: %w", err)
