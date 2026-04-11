@@ -35,6 +35,7 @@ func initGatewayHandler() error {
 		feedsv1.RegisterFeedQueryServiceHandlerFromEndpoint,
 		blogv1.RegisterBlogAdminServiceHandlerFromEndpoint,
 		blogv1.RegisterBlogQueryServiceHandlerFromEndpoint,
+		issuesv1.RegisterPRReviewQueryServiceHandlerFromEndpoint,
 	)
 	if err != nil {
 		return fmt.Errorf("init grpc gateway: %w", err)

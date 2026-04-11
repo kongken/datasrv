@@ -143,6 +143,22 @@ func (s *Summarizer) SummarizeIssue(ctx context.Context, issue Issue, replies []
 	return strings.TrimSpace(summary), nil
 }
 
+func initOpenAI(ctx context.Context, cfg Config) (*genkit.Genkit, error) {
+	plugin := &oai.OpenAI{
+		APIKey: strings.TrimSpace(cfg.OpenAIAPIKey),
+	}
+	if baseURL := strings.TrimSpace(cfg.OpenAIBaseURL); baseURL != "" {
+		plugin.Opts = append(plugin.Opts, option.WithBaseURL(baseURL))
+	}
+	return genkit.Init(ctx, genkit.WithPlugins(plugin)), nil
+}
+
+func initGoogleAI(ctx context.Context, cfg Config) (*genkit.Genkit, error) {
+	return genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{
+		APIKey: strings.TrimSpace(cfg.GoogleAPIKey),
+	})), nil
+}
+
 func normalizeModelName(provider, model string) string {
 	model = strings.TrimSpace(model)
 	if model == "" {

@@ -26,6 +26,8 @@ const (
 	IssueSyncAdminServiceName = "issues.v1.IssueSyncAdminService"
 	// IssueQueryServiceName is the fully-qualified name of the IssueQueryService service.
 	IssueQueryServiceName = "issues.v1.IssueQueryService"
+	// PRReviewQueryServiceName is the fully-qualified name of the PRReviewQueryService service.
+	PRReviewQueryServiceName = "issues.v1.PRReviewQueryService"
 	// AdminAuthServiceName is the fully-qualified name of the AdminAuthService service.
 	AdminAuthServiceName = "issues.v1.AdminAuthService"
 )
@@ -68,6 +70,12 @@ const (
 	// IssueQueryServiceGetIssueProcedure is the fully-qualified name of the IssueQueryService's
 	// GetIssue RPC.
 	IssueQueryServiceGetIssueProcedure = "/issues.v1.IssueQueryService/GetIssue"
+	// PRReviewQueryServiceListPRReviewsProcedure is the fully-qualified name of the
+	// PRReviewQueryService's ListPRReviews RPC.
+	PRReviewQueryServiceListPRReviewsProcedure = "/issues.v1.PRReviewQueryService/ListPRReviews"
+	// PRReviewQueryServiceGetPRReviewProcedure is the fully-qualified name of the
+	// PRReviewQueryService's GetPRReview RPC.
+	PRReviewQueryServiceGetPRReviewProcedure = "/issues.v1.PRReviewQueryService/GetPRReview"
 	// AdminAuthServiceAdminLoginProcedure is the fully-qualified name of the AdminAuthService's
 	// AdminLogin RPC.
 	AdminAuthServiceAdminLoginProcedure = "/issues.v1.AdminAuthService/AdminLogin"
@@ -425,6 +433,102 @@ func (UnimplementedIssueQueryServiceHandler) ListIssues(context.Context, *connec
 
 func (UnimplementedIssueQueryServiceHandler) GetIssue(context.Context, *connect.Request[v1.GetIssueRequest]) (*connect.Response[v1.GetIssueResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.IssueQueryService.GetIssue is not implemented"))
+}
+
+// PRReviewQueryServiceClient is a client for the issues.v1.PRReviewQueryService service.
+type PRReviewQueryServiceClient interface {
+	ListPRReviews(context.Context, *connect.Request[v1.ListPRReviewsRequest]) (*connect.Response[v1.ListPRReviewsResponse], error)
+	GetPRReview(context.Context, *connect.Request[v1.GetPRReviewRequest]) (*connect.Response[v1.GetPRReviewResponse], error)
+}
+
+// NewPRReviewQueryServiceClient constructs a client for the issues.v1.PRReviewQueryService service.
+// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
+// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewPRReviewQueryServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) PRReviewQueryServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	pRReviewQueryServiceMethods := v1.File_issues_v1_issue_proto.Services().ByName("PRReviewQueryService").Methods()
+	return &pRReviewQueryServiceClient{
+		listPRReviews: connect.NewClient[v1.ListPRReviewsRequest, v1.ListPRReviewsResponse](
+			httpClient,
+			baseURL+PRReviewQueryServiceListPRReviewsProcedure,
+			connect.WithSchema(pRReviewQueryServiceMethods.ByName("ListPRReviews")),
+			connect.WithClientOptions(opts...),
+		),
+		getPRReview: connect.NewClient[v1.GetPRReviewRequest, v1.GetPRReviewResponse](
+			httpClient,
+			baseURL+PRReviewQueryServiceGetPRReviewProcedure,
+			connect.WithSchema(pRReviewQueryServiceMethods.ByName("GetPRReview")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// pRReviewQueryServiceClient implements PRReviewQueryServiceClient.
+type pRReviewQueryServiceClient struct {
+	listPRReviews *connect.Client[v1.ListPRReviewsRequest, v1.ListPRReviewsResponse]
+	getPRReview   *connect.Client[v1.GetPRReviewRequest, v1.GetPRReviewResponse]
+}
+
+// ListPRReviews calls issues.v1.PRReviewQueryService.ListPRReviews.
+func (c *pRReviewQueryServiceClient) ListPRReviews(ctx context.Context, req *connect.Request[v1.ListPRReviewsRequest]) (*connect.Response[v1.ListPRReviewsResponse], error) {
+	return c.listPRReviews.CallUnary(ctx, req)
+}
+
+// GetPRReview calls issues.v1.PRReviewQueryService.GetPRReview.
+func (c *pRReviewQueryServiceClient) GetPRReview(ctx context.Context, req *connect.Request[v1.GetPRReviewRequest]) (*connect.Response[v1.GetPRReviewResponse], error) {
+	return c.getPRReview.CallUnary(ctx, req)
+}
+
+// PRReviewQueryServiceHandler is an implementation of the issues.v1.PRReviewQueryService service.
+type PRReviewQueryServiceHandler interface {
+	ListPRReviews(context.Context, *connect.Request[v1.ListPRReviewsRequest]) (*connect.Response[v1.ListPRReviewsResponse], error)
+	GetPRReview(context.Context, *connect.Request[v1.GetPRReviewRequest]) (*connect.Response[v1.GetPRReviewResponse], error)
+}
+
+// NewPRReviewQueryServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewPRReviewQueryServiceHandler(svc PRReviewQueryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	pRReviewQueryServiceMethods := v1.File_issues_v1_issue_proto.Services().ByName("PRReviewQueryService").Methods()
+	pRReviewQueryServiceListPRReviewsHandler := connect.NewUnaryHandler(
+		PRReviewQueryServiceListPRReviewsProcedure,
+		svc.ListPRReviews,
+		connect.WithSchema(pRReviewQueryServiceMethods.ByName("ListPRReviews")),
+		connect.WithHandlerOptions(opts...),
+	)
+	pRReviewQueryServiceGetPRReviewHandler := connect.NewUnaryHandler(
+		PRReviewQueryServiceGetPRReviewProcedure,
+		svc.GetPRReview,
+		connect.WithSchema(pRReviewQueryServiceMethods.ByName("GetPRReview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/issues.v1.PRReviewQueryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case PRReviewQueryServiceListPRReviewsProcedure:
+			pRReviewQueryServiceListPRReviewsHandler.ServeHTTP(w, r)
+		case PRReviewQueryServiceGetPRReviewProcedure:
+			pRReviewQueryServiceGetPRReviewHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedPRReviewQueryServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedPRReviewQueryServiceHandler struct{}
+
+func (UnimplementedPRReviewQueryServiceHandler) ListPRReviews(context.Context, *connect.Request[v1.ListPRReviewsRequest]) (*connect.Response[v1.ListPRReviewsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.PRReviewQueryService.ListPRReviews is not implemented"))
+}
+
+func (UnimplementedPRReviewQueryServiceHandler) GetPRReview(context.Context, *connect.Request[v1.GetPRReviewRequest]) (*connect.Response[v1.GetPRReviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("issues.v1.PRReviewQueryService.GetPRReview is not implemented"))
 }
 
 // AdminAuthServiceClient is a client for the issues.v1.AdminAuthService service.

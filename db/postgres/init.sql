@@ -83,6 +83,21 @@ CREATE TABLE IF NOT EXISTS rss_feed_checkpoints (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS pr_ai_reviews (
+    id BIGSERIAL PRIMARY KEY,
+    repo VARCHAR(255) NOT NULL,
+    issue_id BIGINT NOT NULL,
+    number INTEGER NOT NULL,
+    review_summary TEXT NOT NULL DEFAULT '',
+    risk_areas TEXT NOT NULL DEFAULT '',
+    suggestions TEXT NOT NULL DEFAULT '',
+    raw_diff_size INTEGER NOT NULL DEFAULT 0,
+    model_used VARCHAR(255) NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_pr_ai_reviews_repo_issue_id UNIQUE (repo, issue_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_github_issues_repo_updated_at
     ON github_issues (repo, updated_at DESC);
 
@@ -113,11 +128,15 @@ CREATE INDEX IF NOT EXISTS idx_rss_feed_contents_source_published_at
 CREATE INDEX IF NOT EXISTS idx_rss_feed_contents_published_at
     ON rss_feed_contents (published_at);
 
+CREATE INDEX IF NOT EXISTS idx_pr_ai_reviews_repo_updated_at
+    ON pr_ai_reviews (repo, updated_at DESC);
+
 COMMENT ON TABLE github_issues IS 'Synced GitHub issues persisted by datasrv.';
 COMMENT ON TABLE github_issue_checkpoints IS 'Per-repository issue sync checkpoints.';
 COMMENT ON TABLE github_sync_repos IS 'Managed repository list used by issue sync.';
 COMMENT ON TABLE rss_feed_sources IS 'Configured RSS/Atom feed sources.';
 COMMENT ON TABLE rss_feed_contents IS 'Normalized feed entries fetched from RSS/Atom sources.';
 COMMENT ON TABLE rss_feed_checkpoints IS 'Per-feed sync checkpoints and cache validators.';
+COMMENT ON TABLE pr_ai_reviews IS 'AI-generated code review summaries for synced pull requests.';
 
 COMMIT;

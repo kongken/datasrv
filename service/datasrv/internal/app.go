@@ -38,12 +38,16 @@ var (
 	feedQueryGRPC         *service.FeedQueryGRPCServer
 	blogAdminGRPC         *service.BlogAdminGRPCServer
 	blogQueryGRPC         *service.BlogQueryGRPCServer
+	prReviewQueryGRPC     *service.PRReviewQueryGRPCServer
 	schedulerStopC        chan struct{}
 	schedulerStop         context.CancelFunc
 	feedSchedulerStopC    chan struct{}
 	feedSchedulerStop     context.CancelFunc
-	summarySchedulerStopC chan struct{}
-	summarySchedulerStop  context.CancelFunc
+	summarySchedulerStopC  chan struct{}
+	summarySchedulerStop   context.CancelFunc
+	prReviewSvc            *service.PRReviewService
+	prReviewSchedulerStopC chan struct{}
+	prReviewSchedulerStop  context.CancelFunc
 )
 
 func NewApp() *app.App {
@@ -87,6 +91,9 @@ func registerGRPC(server *grpc.Server) {
 	}
 	if blogQueryGRPC != nil {
 		blogv1.RegisterBlogQueryServiceServer(server, blogQueryGRPC)
+	}
+	if prReviewQueryGRPC != nil {
+		issuesv1.RegisterPRReviewQueryServiceServer(server, prReviewQueryGRPC)
 	}
 }
 
@@ -145,6 +152,24 @@ func initSyncComponents() error {
 		return fmt.Errorf("list managed repos after seed: %w", err)
 	}
 	feedSyncService = service.NewFeedSyncService(feedStore, conf.Conf.FeedSync, nil)
+	if conf.Conf.PRReview.Enabled {
+		prReviewStore, ok := combined.(dao.PRReviewStore)
+		if !ok {
+			return fmt.Errorf("store %T does not implement pr review store", combined)
+		}
+		reviewer, err := genpkg.NewPRReviewer(context.Background(), genpkg.Config{
+			Provider:      conf.Conf.PRReview.Provider,
+			Model:         conf.Conf.PRReview.Model,
+			SystemPrompt:  conf.Conf.PRReview.SystemPrompt,
+			OpenAIAPIKey:  conf.Conf.PRReview.OpenAIAPIKey,
+			OpenAIBaseURL: conf.Conf.PRReview.OpenAIBaseURL,
+			GoogleAPIKey:  conf.Conf.PRReview.GoogleAPIKey,
+		})
+		if err != nil {
+			return fmt.Errorf("init pr reviewer: %w", err)
+		}
+		prReviewSvc = service.NewPRReviewService(syncStore, prReviewStore, reviewer, conf.Conf.GitHub, conf.Conf.PRReview)
+	}
 	if conf.Conf.IssueSummary.Enabled {
 		summarizer, err := genpkg.NewSummarizer(context.Background(), genpkg.Config{
 			Provider:      conf.Conf.IssueSummary.Provider,
@@ -165,6 +190,9 @@ func initSyncComponents() error {
 	queryGRPC = service.NewIssueQueryGRPCServer(syncStore, commentStore)
 	feedAdminGRPC = service.NewFeedSyncAdminGRPCServer(feedStore, feedSyncService, conf.Conf)
 	feedQueryGRPC = service.NewFeedQueryGRPCServer(feedStore)
+	if typedPRReviewStore, ok := combined.(dao.PRReviewStore); ok {
+		prReviewQueryGRPC = service.NewPRReviewQueryGRPCServer(typedPRReviewStore)
+	}
 	if typedBlogStore, ok := combined.(dao.BlogStore); ok {
 		blogStore = typedBlogStore
 		blogAdminGRPC = service.NewBlogAdminGRPCServer(blogStore)
@@ -183,6 +211,9 @@ func initSyncComponents() error {
 		"issue_summary_enabled", conf.Conf.IssueSummary.Enabled,
 		"issue_summary_provider", conf.Conf.IssueSummary.Provider,
 		"issue_summary_model", conf.Conf.IssueSummary.Model,
+		"pr_review_enabled", conf.Conf.PRReview.Enabled,
+		"pr_review_provider", conf.Conf.PRReview.Provider,
+		"pr_review_model", conf.Conf.PRReview.Model,
 		"blog_store_driver", "memory",
 	)
 	return nil
@@ -326,6 +357,47 @@ func startSyncScheduler() error {
 			}()
 		}
 	}
+	if prReviewSvc != nil {
+		prReviewCfg := prReviewSvc.GetConfig()
+		if prReviewCfg.Enabled && prReviewSchedulerStopC == nil {
+			prReviewSchedulerStopC = make(chan struct{})
+			var prReviewSchedulerCtx context.Context
+			prReviewSchedulerCtx, prReviewSchedulerStop = context.WithCancel(context.Background())
+
+			interval := time.Duration(prReviewCfg.IntervalSeconds) * time.Second
+			if interval <= 0 {
+				interval = 10 * time.Minute
+			}
+			appLogger.Info("pr review scheduler started",
+				"interval", interval.String(),
+				"max_prs_per_run", prReviewCfg.MaxPRsPerRun,
+				"max_diff_size", prReviewCfg.MaxDiffSize,
+			)
+
+			go func() {
+				ticker := time.NewTicker(interval)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-ticker.C:
+						appLogger.Info("pr review tick triggered")
+						summary, err := prReviewSvc.Run(prReviewSchedulerCtx)
+						if err != nil {
+							appLogger.Error("pr review run failed", "error", err)
+							continue
+						}
+						logPRReviewRun(summary)
+					case <-prReviewSchedulerStopC:
+						appLogger.Info("pr review scheduler stopped")
+						return
+					case <-prReviewSchedulerCtx.Done():
+						appLogger.Info("pr review scheduler context done")
+						return
+					}
+				}
+			}()
+		}
+	}
 	return nil
 }
 
@@ -353,6 +425,14 @@ func stopSyncScheduler() error {
 	if summarySchedulerStopC != nil {
 		close(summarySchedulerStopC)
 		summarySchedulerStopC = nil
+	}
+	if prReviewSchedulerStop != nil {
+		prReviewSchedulerStop()
+		prReviewSchedulerStop = nil
+	}
+	if prReviewSchedulerStopC != nil {
+		close(prReviewSchedulerStopC)
+		prReviewSchedulerStopC = nil
 	}
 	return nil
 }
@@ -425,6 +505,34 @@ func logIssueSummaryRun(summary service.IssueSummaryRunSummary) {
 			"skipped", result.Skipped,
 			"failed", result.Failed,
 			"stopped", result.Stopped,
+		)
+	}
+}
+
+func logPRReviewRun(summary service.PRReviewRunSummary) {
+	appLogger.Info("pr review run finished",
+		"started_at", summary.StartedAt,
+		"finished_at", summary.FinishedAt,
+		"result_count", len(summary.Results),
+	)
+	for _, result := range summary.Results {
+		if len(result.Errors) > 0 {
+			appLogger.Error("pr review repo finished with errors",
+				"repo", result.Repo,
+				"scanned", result.Scanned,
+				"reviewed", result.Reviewed,
+				"skipped", result.Skipped,
+				"failed", result.Failed,
+				"errors", result.Errors,
+			)
+			continue
+		}
+		appLogger.Info("pr review repo finished",
+			"repo", result.Repo,
+			"scanned", result.Scanned,
+			"reviewed", result.Reviewed,
+			"skipped", result.Skipped,
+			"failed", result.Failed,
 		)
 	}
 }

@@ -148,7 +148,7 @@ func NewGormSyncStore(dsn string) (*GormSyncStore, error) {
 		return nil, fmt.Errorf("open gorm postgres: %w", err)
 	}
 
-	if err := db.AutoMigrate(&gormIssue{}, &gormCheckpoint{}, &gormManagedRepo{}, &gormFeedSource{}, &gormFeedContent{}, &gormFeedCheckpoint{}, &gormBlogPost{}, &gormBlogComment{}); err != nil {
+	if err := db.AutoMigrate(&gormIssue{}, &gormCheckpoint{}, &gormManagedRepo{}, &gormFeedSource{}, &gormFeedContent{}, &gormFeedCheckpoint{}, &gormBlogPost{}, &gormBlogComment{}, &gormPRReview{}); err != nil {
 		return nil, fmt.Errorf("gorm automigrate: %w", err)
 	}
 

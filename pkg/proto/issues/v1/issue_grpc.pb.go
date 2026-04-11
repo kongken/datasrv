@@ -528,6 +528,146 @@ var IssueQueryService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
+	PRReviewQueryService_ListPRReviews_FullMethodName = "/issues.v1.PRReviewQueryService/ListPRReviews"
+	PRReviewQueryService_GetPRReview_FullMethodName   = "/issues.v1.PRReviewQueryService/GetPRReview"
+)
+
+// PRReviewQueryServiceClient is the client API for PRReviewQueryService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type PRReviewQueryServiceClient interface {
+	ListPRReviews(ctx context.Context, in *ListPRReviewsRequest, opts ...grpc.CallOption) (*ListPRReviewsResponse, error)
+	GetPRReview(ctx context.Context, in *GetPRReviewRequest, opts ...grpc.CallOption) (*GetPRReviewResponse, error)
+}
+
+type pRReviewQueryServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewPRReviewQueryServiceClient(cc grpc.ClientConnInterface) PRReviewQueryServiceClient {
+	return &pRReviewQueryServiceClient{cc}
+}
+
+func (c *pRReviewQueryServiceClient) ListPRReviews(ctx context.Context, in *ListPRReviewsRequest, opts ...grpc.CallOption) (*ListPRReviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPRReviewsResponse)
+	err := c.cc.Invoke(ctx, PRReviewQueryService_ListPRReviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pRReviewQueryServiceClient) GetPRReview(ctx context.Context, in *GetPRReviewRequest, opts ...grpc.CallOption) (*GetPRReviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPRReviewResponse)
+	err := c.cc.Invoke(ctx, PRReviewQueryService_GetPRReview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// PRReviewQueryServiceServer is the server API for PRReviewQueryService service.
+// All implementations must embed UnimplementedPRReviewQueryServiceServer
+// for forward compatibility.
+type PRReviewQueryServiceServer interface {
+	ListPRReviews(context.Context, *ListPRReviewsRequest) (*ListPRReviewsResponse, error)
+	GetPRReview(context.Context, *GetPRReviewRequest) (*GetPRReviewResponse, error)
+	mustEmbedUnimplementedPRReviewQueryServiceServer()
+}
+
+// UnimplementedPRReviewQueryServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedPRReviewQueryServiceServer struct{}
+
+func (UnimplementedPRReviewQueryServiceServer) ListPRReviews(context.Context, *ListPRReviewsRequest) (*ListPRReviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPRReviews not implemented")
+}
+func (UnimplementedPRReviewQueryServiceServer) GetPRReview(context.Context, *GetPRReviewRequest) (*GetPRReviewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPRReview not implemented")
+}
+func (UnimplementedPRReviewQueryServiceServer) mustEmbedUnimplementedPRReviewQueryServiceServer() {}
+func (UnimplementedPRReviewQueryServiceServer) testEmbeddedByValue()                              {}
+
+// UnsafePRReviewQueryServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to PRReviewQueryServiceServer will
+// result in compilation errors.
+type UnsafePRReviewQueryServiceServer interface {
+	mustEmbedUnimplementedPRReviewQueryServiceServer()
+}
+
+func RegisterPRReviewQueryServiceServer(s grpc.ServiceRegistrar, srv PRReviewQueryServiceServer) {
+	// If the following call panics, it indicates UnimplementedPRReviewQueryServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&PRReviewQueryService_ServiceDesc, srv)
+}
+
+func _PRReviewQueryService_ListPRReviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPRReviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PRReviewQueryServiceServer).ListPRReviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PRReviewQueryService_ListPRReviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PRReviewQueryServiceServer).ListPRReviews(ctx, req.(*ListPRReviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PRReviewQueryService_GetPRReview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPRReviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PRReviewQueryServiceServer).GetPRReview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PRReviewQueryService_GetPRReview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PRReviewQueryServiceServer).GetPRReview(ctx, req.(*GetPRReviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// PRReviewQueryService_ServiceDesc is the grpc.ServiceDesc for PRReviewQueryService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var PRReviewQueryService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "issues.v1.PRReviewQueryService",
+	HandlerType: (*PRReviewQueryServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListPRReviews",
+			Handler:    _PRReviewQueryService_ListPRReviews_Handler,
+		},
+		{
+			MethodName: "GetPRReview",
+			Handler:    _PRReviewQueryService_GetPRReview_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "issues/v1/issue.proto",
+}
+
+const (
 	AdminAuthService_AdminLogin_FullMethodName  = "/issues.v1.AdminAuthService/AdminLogin"
 	AdminAuthService_AdminLogout_FullMethodName = "/issues.v1.AdminAuthService/AdminLogout"
 	AdminAuthService_AdminWhoAmI_FullMethodName = "/issues.v1.AdminAuthService/AdminWhoAmI"

@@ -345,6 +345,56 @@ service IssueQueryService {
   }
 }
 
+// PRReview represents an AI-generated pull request review.
+message PRReview {
+  int64 id = 1;
+  string repo = 2;
+  int64 issue_id = 3;
+  int32 number = 4;
+  string review_summary = 5;
+  string risk_areas = 6;
+  string suggestions = 7;
+  int32 raw_diff_size = 8;
+  string model_used = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message ListPRReviewsRequest {
+  string repo = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListPRReviewsResponse {
+  repeated PRReview reviews = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool has_next = 4;
+}
+
+message GetPRReviewRequest {
+  string repo = 1;
+  int32 number = 2;
+}
+
+message GetPRReviewResponse {
+  PRReview review = 1;
+}
+
+service PRReviewQueryService {
+  rpc ListPRReviews(ListPRReviewsRequest) returns (ListPRReviewsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/pr-reviews"
+    };
+  }
+  rpc GetPRReview(GetPRReviewRequest) returns (GetPRReviewResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/pr-review"
+    };
+  }
+}
+
 service AdminAuthService {
   rpc AdminLogin(AdminLoginRequest) returns (AdminLoginResponse) {
     option (google.api.http) = {

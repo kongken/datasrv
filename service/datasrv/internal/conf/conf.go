@@ -33,6 +33,9 @@ type Config struct {
 	// IssueSummary controls periodic AI summary generation for synced issues.
 	IssueSummary IssueSummaryConfig `yaml:"issue_summary" json:"issue_summary"`
 
+	// PRReview controls periodic AI review generation for synced pull requests.
+	PRReview PRReviewConfig `yaml:"pr_review" json:"pr_review"`
+
 	// Server configuration
 	Server ServerConfig `yaml:"server" json:"server"`
 
@@ -167,6 +170,42 @@ type IssueSummaryConfig struct {
 	Model string `yaml:"model" json:"model"`
 
 	// SystemPrompt overrides the default summarization system prompt.
+	SystemPrompt string `yaml:"system_prompt" json:"system_prompt"`
+
+	OpenAIAPIKey  string `yaml:"openai_api_key" json:"openai_api_key"`
+	OpenAIBaseURL string `yaml:"openai_base_url" json:"openai_base_url"`
+	GoogleAPIKey  string `yaml:"google_api_key" json:"google_api_key"`
+}
+
+// PRReviewConfig holds scheduled PR AI review generation options.
+type PRReviewConfig struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+
+	// IntervalSeconds controls scheduler frequency.
+	IntervalSeconds int `yaml:"interval_seconds" json:"interval_seconds"`
+
+	// BatchSize controls how many PRs to process per run.
+	BatchSize int `yaml:"batch_size" json:"batch_size"`
+
+	// MaxPRsPerRun bounds how many PRs are reviewed in one run.
+	MaxPRsPerRun int `yaml:"max_prs_per_run" json:"max_prs_per_run"`
+
+	// MaxDiffSize is the maximum diff size in bytes before truncation (default 100KB).
+	MaxDiffSize int `yaml:"max_diff_size" json:"max_diff_size"`
+
+	// RequestTimeoutSeconds controls timeout for each AI generation request.
+	RequestTimeoutSeconds int `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+
+	// OverwriteExisting controls whether existing reviews are regenerated.
+	OverwriteExisting bool `yaml:"overwrite_existing" json:"overwrite_existing"`
+
+	// Provider selects the AI provider, such as "openai" or "googleai".
+	Provider string `yaml:"provider" json:"provider"`
+
+	// Model is the provider model id.
+	Model string `yaml:"model" json:"model"`
+
+	// SystemPrompt overrides the default PR review system prompt.
 	SystemPrompt string `yaml:"system_prompt" json:"system_prompt"`
 
 	OpenAIAPIKey  string `yaml:"openai_api_key" json:"openai_api_key"`
