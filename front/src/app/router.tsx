@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes, StaticRouter } from "react-router-dom";
 import { SiteShell } from "@/components/layout/site-shell";
 import { IssueDetailPage } from "@/routes/issue-detail-page";
 import { IssuesHomePage } from "@/routes/issues-home-page";
+import { StatusPage } from "@/routes/status-page";
 
 export type AppRouterMode = "browser" | "static";
 
@@ -10,6 +11,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<SiteShell />}>
         <Route index element={<IssuesHomePage />} />
+        <Route path="status" element={<StatusPage />} />
         <Route path="issues/:id" element={<IssueDetailPage />} />
       </Route>
     </Routes>

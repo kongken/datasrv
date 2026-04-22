@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api/client";
-import type { Issue, ListIssuesResponse } from "@/lib/api/types";
+import type { Issue, IssueStats, ListIssuesResponse } from "@/lib/api/types";
 
 function hasAISummary(issue: Issue) {
   return Boolean(issue.aiSummary?.trim());
@@ -39,6 +39,16 @@ export function getIssue(
   options?: { baseUrl?: string },
 ) {
   return apiRequest<{ issue: Issue }>("/api/v1/issue", {
+    params,
+    baseUrl: options?.baseUrl,
+  });
+}
+
+export function getIssueStats(
+  params?: { repo?: string },
+  options?: { baseUrl?: string },
+) {
+  return apiRequest<IssueStats>("/api/v1/issues/stats", {
     params,
     baseUrl: options?.baseUrl,
   });
