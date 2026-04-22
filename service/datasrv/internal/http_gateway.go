@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -13,6 +14,7 @@ import (
 	feedsv1 "github.com/kongken/datasrv/pkg/proto/feeds/v1"
 	issuesv1 "github.com/kongken/datasrv/pkg/proto/issues/v1"
 	"github.com/kongken/datasrv/service/datasrv/internal/conf"
+	"github.com/kongken/datasrv/service/datasrv/internal/dao"
 	"github.com/kongken/datasrv/service/datasrv/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -24,6 +26,17 @@ type gatewayRegistrar func(context.Context, *runtime.ServeMux, string, []grpc.Di
 
 var gatewayHandler http.Handler
 var adminTokenValidator service.AdminTokenStore
+
+type issueStatsResponse struct {
+	Total           int32  `json:"total"`
+	Open            int32  `json:"open"`
+	Closed          int32  `json:"closed"`
+	WithAISummary   int32  `json:"withAiSummary"`
+	TotalComments   int32  `json:"totalComments"`
+	RepoCount       int32  `json:"repoCount"`
+	LatestCreatedAt string `json:"latestCreatedAt,omitempty"`
+	LatestUpdatedAt string `json:"latestUpdatedAt,omitempty"`
+}
 
 func initGatewayHandler() error {
 	handler, err := newGatewayMux(context.Background(), grpcGatewayEndpoint, []grpc.DialOption{
@@ -58,6 +71,7 @@ func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.Admi
 	r.Use(corsMiddleware())
 	r.GET("/ads.txt", serveAdsTxt)
 	r.GET("/sitemap.xml", serveSitemapXML)
+	r.GET("/api/v1/issues/stats", issueStatsHandler(syncStore))
 
 	if gateway == nil {
 		r.NoRoute(func(c *gin.Context) {
@@ -89,6 +103,67 @@ func registerHTTPRoutes(r *gin.Engine, gateway http.Handler, tokens service.Admi
 
 func setupHTTPRouter(r *gin.Engine) {
 	registerHTTPRoutes(r, gatewayHandler, adminTokenValidator)
+}
+
+func issueStatsHandler(store dao.SyncStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if store == nil {
+			writeAdminAuthError(c, http.StatusServiceUnavailable, "issue_stats_store_unavailable", "issue stats store is not initialized")
+			return
+		}
+
+		rows, err := store.ListIssues(c.Request.Context(), dao.SyncIssueFilter{
+			Repo:  strings.TrimSpace(c.Query("repo")),
+			State: "all",
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    "issue_stats_query_failed",
+				"message": fmt.Sprintf("query issue stats: %v", err),
+			})
+			return
+		}
+
+		stats := buildIssueStatsResponse(rows)
+		c.JSON(http.StatusOK, stats)
+	}
+}
+
+func buildIssueStatsResponse(rows []dao.SyncedIssue) issueStatsResponse {
+	stats := issueStatsResponse{}
+	repos := make(map[string]struct{}, len(rows))
+	var latestCreatedAt time.Time
+	var latestUpdatedAt time.Time
+	for _, row := range rows {
+		stats.Total++
+		switch row.State {
+		case "open":
+			stats.Open++
+		case "closed":
+			stats.Closed++
+		}
+		if strings.TrimSpace(row.AISummary) != "" {
+			stats.WithAISummary++
+		}
+		stats.TotalComments += row.Comments
+		if row.Repo != "" {
+			repos[row.Repo] = struct{}{}
+		}
+		if row.CreatedAt.After(latestCreatedAt) {
+			latestCreatedAt = row.CreatedAt
+		}
+		if row.UpdatedAt.After(latestUpdatedAt) {
+			latestUpdatedAt = row.UpdatedAt
+		}
+	}
+	stats.RepoCount = int32(len(repos))
+	if !latestCreatedAt.IsZero() {
+		stats.LatestCreatedAt = latestCreatedAt.UTC().Format(time.RFC3339Nano)
+	}
+	if !latestUpdatedAt.IsZero() {
+		stats.LatestUpdatedAt = latestUpdatedAt.UTC().Format(time.RFC3339Nano)
+	}
+	return stats
 }
 
 func serveAdsTxt(c *gin.Context) {
