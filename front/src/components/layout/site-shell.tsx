@@ -1,6 +1,6 @@
 import { ChevronDown, MonitorCog } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { ThemeControlsPanel } from "@/components/layout/theme-controls";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +46,35 @@ export function SiteShell() {
             <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
               A public issue browsing page for end users, with synced GitHub issues filtered by status and pagination.
             </p>
+            <nav className="flex flex-wrap items-center gap-2 pt-1">
+              <NavLink
+                to="/"
+                end
+                className={({ isActive }) =>
+                  cn(
+                    "rounded-full border px-4 py-2 text-sm font-medium transition",
+                    isActive
+                      ? "border-primary/30 bg-primary text-primary-foreground"
+                      : "border-border/80 bg-card/80 text-foreground hover:bg-card",
+                  )
+                }
+              >
+                Issues
+              </NavLink>
+              <NavLink
+                to="/status"
+                className={({ isActive }) =>
+                  cn(
+                    "rounded-full border px-4 py-2 text-sm font-medium transition",
+                    isActive
+                      ? "border-primary/30 bg-primary text-primary-foreground"
+                      : "border-border/80 bg-card/80 text-foreground hover:bg-card",
+                  )
+                }
+              >
+                Status
+              </NavLink>
+            </nav>
           </div>
           <div ref={panelRef} className="relative self-start xl:self-start">
             <button

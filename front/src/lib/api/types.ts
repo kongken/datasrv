@@ -53,3 +53,14 @@ export type ListIssuesResponse = {
   pageSize: number;
   hasNext: boolean;
 };
+
+export type IssueStats = {
+  total: number;
+  open: number;
+  closed: number;
+  withAiSummary: number;
+  totalComments: number;
+  repoCount: number;
+  latestCreatedAt?: string;
+  latestUpdatedAt?: string;
+};

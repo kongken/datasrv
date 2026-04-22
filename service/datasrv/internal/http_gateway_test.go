@@ -6,12 +6,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/kongken/datasrv/service/datasrv/internal/conf"
+	"github.com/kongken/datasrv/service/datasrv/internal/dao"
 	"github.com/kongken/datasrv/service/datasrv/internal/service"
 	"google.golang.org/grpc"
 )
@@ -49,6 +51,120 @@ func TestRegisterHTTPRoutesForwardsToGatewayHandler(t *testing.T) {
 	}
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+	}
+}
+
+func TestRegisterHTTPRoutesServesIssueStats(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prevStore := syncStore
+	now := time.Now().UTC().Truncate(time.Second)
+	syncStore = &stubIssueStatsStore{
+		rows: []dao.SyncedIssue{
+			{Repo: "o/r1", State: "open", Comments: 2, AISummary: "summary", CreatedAt: now.Add(-2 * time.Hour), UpdatedAt: now.Add(-time.Hour)},
+			{Repo: "o/r2", State: "closed", Comments: 5, CreatedAt: now.Add(-90 * time.Minute), UpdatedAt: now},
+		},
+	}
+	t.Cleanup(func() {
+		syncStore = prevStore
+	})
+
+	router := gin.New()
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("gateway should not be called for %s", r.URL.Path)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/issues/stats", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	var resp issueStatsResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp.Total != 2 {
+		t.Fatalf("total = %d, want 2", resp.Total)
+	}
+	if resp.Open != 1 {
+		t.Fatalf("open = %d, want 1", resp.Open)
+	}
+	if resp.Closed != 1 {
+		t.Fatalf("closed = %d, want 1", resp.Closed)
+	}
+	if resp.WithAISummary != 1 {
+		t.Fatalf("withAiSummary = %d, want 1", resp.WithAISummary)
+	}
+	if resp.TotalComments != 7 {
+		t.Fatalf("totalComments = %d, want 7", resp.TotalComments)
+	}
+	if resp.RepoCount != 2 {
+		t.Fatalf("repoCount = %d, want 2", resp.RepoCount)
+	}
+	if resp.LatestCreatedAt != now.Add(-90*time.Minute).Format(time.RFC3339Nano) {
+		t.Fatalf("latestCreatedAt = %q", resp.LatestCreatedAt)
+	}
+	if resp.LatestUpdatedAt != now.Format(time.RFC3339Nano) {
+		t.Fatalf("latestUpdatedAt = %q", resp.LatestUpdatedAt)
+	}
+}
+
+func TestRegisterHTTPRoutesServesIssueStatsByRepo(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prevStore := syncStore
+	syncStore = &stubIssueStatsStore{
+		rows: []dao.SyncedIssue{
+			{Repo: "o/r2", State: "closed", Comments: 5},
+		},
+	}
+	t.Cleanup(func() {
+		syncStore = prevStore
+	})
+
+	router := gin.New()
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("gateway should not be called for %s", r.URL.Path)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/issues/stats?repo=o/r2", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := syncStore.(*stubIssueStatsStore).lastFilter.Repo; got != "o/r2" {
+		t.Fatalf("repo filter = %q, want o/r2", got)
+	}
+}
+
+func TestRegisterHTTPRoutesIssueStatsHandlesStoreError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prevStore := syncStore
+	syncStore = &stubIssueStatsStore{err: errors.New("db unavailable")}
+	t.Cleanup(func() {
+		syncStore = prevStore
+	})
+
+	router := gin.New()
+	registerHTTPRoutes(router, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("gateway should not be called for %s", r.URL.Path)
+	}), &fakeAdminTokenValidator{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/issues/stats", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+	if !strings.Contains(rec.Body.String(), "issue_stats_query_failed") {
+		t.Fatalf("body = %q, want query failure code", rec.Body.String())
 	}
 }
 
@@ -272,6 +388,12 @@ type fakeAdminTokenValidator struct {
 	err       error
 }
 
+type stubIssueStatsStore struct {
+	rows       []dao.SyncedIssue
+	err        error
+	lastFilter dao.SyncIssueFilter
+}
+
 func assertAdminAuthError(t *testing.T, rec *httptest.ResponseRecorder, code, message string) {
 	t.Helper()
 	var body map[string]string
@@ -304,4 +426,48 @@ func (s *fakeAdminTokenValidator) ValidateToken(_ context.Context, token string)
 		return "", s.err
 	}
 	return s.user, nil
+}
+
+func (s *stubIssueStatsStore) UpsertIssues(context.Context, string, []dao.SyncedIssue) (int, error) {
+	return 0, nil
+}
+
+func (s *stubIssueStatsStore) ListIssues(_ context.Context, filter dao.SyncIssueFilter) ([]dao.SyncedIssue, error) {
+	s.lastFilter = filter
+	if s.err != nil {
+		return nil, s.err
+	}
+	return append([]dao.SyncedIssue(nil), s.rows...), nil
+}
+
+func (s *stubIssueStatsStore) UpdateIssueAISummary(context.Context, string, int64, int32, string) (dao.SyncedIssue, error) {
+	return dao.SyncedIssue{}, nil
+}
+
+func (s *stubIssueStatsStore) ClearIssueAISummaries(context.Context, string) (int, error) {
+	return 0, nil
+}
+
+func (s *stubIssueStatsStore) ListManagedRepos(context.Context) ([]dao.ManagedRepo, error) {
+	return nil, nil
+}
+
+func (s *stubIssueStatsStore) ReplaceManagedRepos(context.Context, []string) ([]dao.ManagedRepo, error) {
+	return nil, nil
+}
+
+func (s *stubIssueStatsStore) GetRepoCheckpoint(context.Context, string) (dao.Checkpoint, error) {
+	return dao.Checkpoint{}, nil
+}
+
+func (s *stubIssueStatsStore) SaveRepoCheckpoint(context.Context, dao.Checkpoint) error {
+	return nil
+}
+
+func (s *stubIssueStatsStore) ListCheckpoints(context.Context) ([]dao.Checkpoint, error) {
+	return nil, nil
+}
+
+func (s *stubIssueStatsStore) Close() error {
+	return nil
 }

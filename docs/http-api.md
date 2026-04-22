@@ -189,6 +189,25 @@ Authorization: Bearer your-admin-token
 GET /api/v1/issues?repo=owner/repo&state=open&page=1&pageSize=20
 ```
 
+### `GET /api/v1/issues/stats`
+
+读取 issue 聚合统计信息。
+
+常用 query 参数：
+
+- `repo`: 仓库，格式 `owner/repo`，可选；留空时统计全部仓库
+
+响应字段说明：
+
+- `total`: issue 总数
+- `open`: open issue 数
+- `closed`: closed issue 数
+- `withAiSummary`: 已写入 AI 摘要的 issue 数
+- `totalComments`: issue 评论总数
+- `repoCount`: 命中的仓库数
+- `latestCreatedAt`: 最新 issue 创建时间
+- `latestUpdatedAt`: 最新 issue 更新时间
+
 ### `GET /api/v1/issue`
 
 查询单个 issue。
