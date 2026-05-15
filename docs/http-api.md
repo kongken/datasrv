@@ -1,25 +1,23 @@
-# Datasrv HTTP API
+# datasrv HTTP API
 
-本文档整理了 `datasrv` 通过 grpc-gateway 暴露的 HTTP 接口，方便前端直接对接。
+This document summarizes the HTTP routes exposed by `datasrv` through grpc-gateway.
 
-## 基础说明
+## Basics
 
-- HTTP 服务默认监听 `:8080`
-- gRPC 服务默认监听 `:9090`
-- HTTP 接口由 grpc-gateway 转发到本地 gRPC service
-- 响应字段遵循 protobuf JSON 映射规则，通常为 `camelCase`
-- `GET` 接口的请求字段通过 query string 传递
-- `POST` / `PATCH` 接口按 JSON body 传递
-- `/api/v1/admin/` 下的 HTTP 接口默认需要 `Authorization: Bearer <token>`
-- `POST /api/v1/admin/auth:login` 不需要 token，用于换取登录 token
+- Default HTTP port: `:8080`
+- Default gRPC port: `:9090`
+- Response fields follow protobuf JSON mapping, so Go snake_case fields appear as `camelCase`
+- `GET` routes read request fields from the query string or path
+- `POST`, `PATCH`, and `PUT` routes read request fields from the JSON body unless the path already binds them
+- `/api/v1/admin/` routes require `Authorization: Bearer <token>` unless stated otherwise
 
 ## Admin Auth
 
 ### `POST /api/v1/admin/auth:login`
 
-管理员登录鉴权。
+Log in as an admin user.
 
-请求体示例：
+Request:
 
 ```json
 {
@@ -28,7 +26,7 @@
 }
 ```
 
-响应体示例：
+Response:
 
 ```json
 {
@@ -39,23 +37,11 @@
 }
 ```
 
-登录成功后，前端需要把返回的 `token` 放进请求头：
-
-```text
-Authorization: Bearer your-admin-token
-```
-
 ### `POST /api/v1/admin/auth:logout`
 
-管理员登出，删除当前 token。
+Log out the current admin token.
 
-请求头：
-
-```text
-Authorization: Bearer your-admin-token
-```
-
-请求体示例：
+Request:
 
 ```json
 {
@@ -63,26 +49,11 @@ Authorization: Bearer your-admin-token
 }
 ```
 
-响应体示例：
-
-```json
-{
-  "success": true,
-  "message": "ok"
-}
-```
-
 ### `GET /api/v1/admin/auth:me`
 
-读取当前 Bearer token 对应的管理员登录态。
+Read the current admin session.
 
-请求头：
-
-```text
-Authorization: Bearer your-admin-token
-```
-
-响应体示例：
+Typical response:
 
 ```json
 {
@@ -95,9 +66,9 @@ Authorization: Bearer your-admin-token
 
 ### `POST /api/v1/admin/issues:sync`
 
-触发 issue 同步。
+Trigger a sync for one repository or all managed repositories.
 
-请求体示例：
+Request:
 
 ```json
 {
@@ -105,68 +76,74 @@ Authorization: Bearer your-admin-token
 }
 ```
 
-`repo` 可为空，表示同步配置里的全部仓库。
+`repo` may be omitted or empty to sync all managed repos.
 
 ### `GET /api/v1/admin/issues/sync-config`
 
-获取当前 issue 同步配置。
+Read the current issue sync config.
 
 ### `PATCH /api/v1/admin/issues/sync-config`
 
-更新当前 issue 同步配置。
+Update the current issue sync config.
 
-请求体示例：
+Request:
 
 ```json
 {
   "enabled": true,
   "repos": ["owner/repo"],
   "intervalSeconds": 300,
-  "pageSize": 50,
-  "maxPagesPerRun": 5,
-  "requestTimeoutSeconds": 10
+  "pageSize": 100,
+  "maxPagesPerRun": 10,
+  "requestTimeoutSeconds": 60
+}
+```
+
+### `GET /api/v1/admin/issues/repos`
+
+List the managed repositories currently tracked by the service.
+
+### `PUT /api/v1/admin/issues/repos`
+
+Replace the full managed repository set.
+
+Request:
+
+```json
+{
+  "repos": ["owner-a/repo-a", "owner-b/repo-b"]
 }
 ```
 
 ### `GET /api/v1/admin/issues/sync-status`
 
-获取最近一次同步状态和 checkpoint 信息。
+Read the latest sync run status and per-repo checkpoints.
 
 ### `PATCH /api/v1/admin/issues/ai-summary`
 
-更新某个 issue 的 AI 摘要。
+Update one issue summary manually.
 
-请求体示例：
+Request by issue number:
 
 ```json
 {
   "repo": "owner/repo",
   "number": 123,
-  "aiSummary": "这是新的摘要"
+  "aiSummary": "Updated summary"
 }
 ```
 
-也可以传 `issueId` 代替 `number`。
+You can also send `issueId` instead of `number`.
 
 ### `POST /api/v1/admin/issues/ai-summary:clear`
 
-批量清空 issue 的 AI 摘要，用于后续重建 summary。
+Clear issue summaries for one repo or all managed repos.
 
-请求体示例：
+Request:
 
 ```json
 {
   "repo": "owner/repo"
-}
-```
-
-`repo` 可为空，表示清空全部受管仓库的 issue AI 摘要。
-
-响应体示例：
-
-```json
-{
-  "cleared": 123
 }
 ```
 
@@ -174,82 +151,78 @@ Authorization: Bearer your-admin-token
 
 ### `GET /api/v1/issues`
 
-分页查询 issue 列表。
+List issues.
 
-常用 query 参数：
+Common query parameters:
 
-- `repo`: 仓库，格式 `owner/repo`
-- `state`: `open`、`closed`、`all`
-- `page`: 1 开始
-- `pageSize`: 页大小
+- `repo`: `owner/repo`
+- `state`: `open`, `closed`, or `all`
+- `page`: 1-based page number
+- `pageSize`: page size
 
-示例：
+Example:
 
 ```text
 GET /api/v1/issues?repo=owner/repo&state=open&page=1&pageSize=20
 ```
 
-### `GET /api/v1/issues/stats`
-
-读取 issue 聚合统计信息。
-
-常用 query 参数：
-
-- `repo`: 仓库，格式 `owner/repo`，可选；留空时统计全部仓库
-
-响应字段说明：
-
-- `total`: issue 总数
-- `open`: open issue 数
-- `closed`: closed issue 数
-- `withAiSummary`: 已写入 AI 摘要的 issue 数
-- `totalComments`: issue 评论总数
-- `repoCount`: 命中的仓库数
-- `latestCreatedAt`: 最新 issue 创建时间
-- `latestUpdatedAt`: 最新 issue 更新时间
-
 ### `GET /api/v1/issue`
 
-查询单个 issue。
+Get one issue by `issueId` or `number`.
 
-常用 query 参数：
-
-- `repo`: 仓库，格式 `owner/repo`
-- `issueId`: issue ID
-- `number`: issue 编号
-
-示例：
+Example:
 
 ```text
 GET /api/v1/issue?repo=owner/repo&number=123
 ```
 
-`issueId` 和 `number` 二选一。
+## PR Review Query
+
+### `GET /api/v1/pr-reviews`
+
+List AI-generated PR reviews.
+
+Common query parameters:
+
+- `repo`: `owner/repo`
+- `page`
+- `pageSize`
+
+### `GET /api/v1/pr-review`
+
+Get one PR review by repository and pull request number.
+
+Example:
+
+```text
+GET /api/v1/pr-review?repo=owner/repo&number=456
+```
 
 ## Feed Admin
 
 ### `GET /api/v1/admin/feed-sources`
 
-分页查询 feed source 列表。
+List feed sources.
 
-常用 query 参数：
+Common query parameters:
 
 - `page`
 - `pageSize`
 
 ### `GET /api/v1/admin/feed-sources/{id}`
 
-获取单个 feed source。
+Get one feed source by ID.
 
 ### `POST /api/v1/admin/feed-sources`
 
-创建 feed source。
+Create a feed source.
 
-请求体示例：
+Request:
 
 ```json
 {
   "source": {
+    "id": "example-feed",
     "url": "https://example.com/feed.xml",
     "displayName": "Example Feed",
     "description": "Example feed source",
@@ -261,95 +234,121 @@ GET /api/v1/issue?repo=owner/repo&number=123
 
 ### `PATCH /api/v1/admin/feed-sources`
 
-更新 feed source。
-
-请求体示例：
-
-```json
-{
-  "source": {
-    "id": "feed-source-id",
-    "url": "https://example.com/feed.xml",
-    "displayName": "Example Feed",
-    "description": "Updated description",
-    "siteUrl": "https://example.com",
-    "enabled": true
-  }
-}
-```
+Update a feed source.
 
 ### `DELETE /api/v1/admin/feed-sources/{id}`
 
-删除 feed source。
+Delete a feed source.
 
 ### `POST /api/v1/admin/feeds:sync`
 
-触发 feed 同步。
+Trigger feed sync.
 
-请求体示例：
+Request:
 
 ```json
 {
-  "feedSourceId": "feed-source-id"
+  "feedSourceId": "example-feed"
 }
 ```
 
-`feedSourceId` 可为空，表示同步全部已启用 source。
+`feedSourceId` may be omitted or empty to sync all enabled sources.
 
 ### `GET /api/v1/admin/feeds/sync-status`
 
-获取最近一次 feed 同步状态。
+Read the latest feed sync status.
 
 ## Feed Query
 
 ### `GET /api/v1/feeds`
 
-分页查询 feed source 列表。
-
-常用 query 参数：
-
-- `page`
-- `pageSize`
+List feed sources for public/query consumers.
 
 ### `GET /api/v1/feed-contents`
 
-分页查询 feed 内容列表。
+List feed content entries.
 
-常用 query 参数：
+Common query parameters:
 
 - `feedSourceId`
 - `page`
 - `pageSize`
 
-示例：
-
-```text
-GET /api/v1/feed-contents?feedSourceId=feed-source-id&page=1&pageSize=20
-```
-
 ### `GET /api/v1/feed-contents/{id}`
 
-获取单条 feed 内容详情。
+Get one feed content entry.
 
-## 备注
+## Blog Query
 
-- 当前文档基于 proto 中的 grpc-gateway 路由注解整理。
-- 如果后续 proto 路径或字段名变化，需要同步更新本文档。
+### `GET /api/v1/blog/posts`
 
-## Admin Auth Errors
+List blog posts.
 
-admin HTTP 鉴权失败时，响应体统一为：
+Common query parameters:
 
-```json
-{
-  "code": "admin_auth_missing_token",
-  "message": "missing bearer token"
-}
-```
+- `page`
+- `pageSize`
+- `status`
+- `tag`
+- `query`
 
-当前会返回的常见错误码：
+### `GET /api/v1/blog/posts/{slug}`
 
-- `admin_auth_missing_token`: 缺少 `Authorization: Bearer <token>`
-- `admin_auth_invalid_token`: token 不存在或已失效
-- `admin_auth_validation_failed`: Redis 校验失败或服务异常
-- `admin_auth_store_unavailable`: token store 未初始化
+Get one blog post by slug.
+
+### `GET /api/v1/blog/posts/{post_slug}/comments`
+
+List comments for one blog post.
+
+Common query parameters:
+
+- `page`
+- `pageSize`
+- `status`
+
+### `POST /api/v1/blog/posts/{post_slug}/comments`
+
+Create a comment for one blog post.
+
+## Blog Admin
+
+### `POST /api/v1/admin/blog/posts`
+
+Create a blog post.
+
+### `PATCH /api/v1/admin/blog/posts`
+
+Update a blog post.
+
+### `DELETE /api/v1/admin/blog/posts/{id}`
+
+Delete a blog post.
+
+### `GET /api/v1/admin/blog/comments/{id}`
+
+Get one blog comment.
+
+### `PATCH /api/v1/admin/blog/comments`
+
+Update a blog comment.
+
+### `DELETE /api/v1/admin/blog/comments/{id}`
+
+Delete a blog comment.
+
+## Admin auth errors
+
+Admin auth failures are returned as structured JSON errors. Common codes:
+
+- `admin_auth_missing_token`
+- `admin_auth_invalid_token`
+- `admin_auth_validation_failed`
+- `admin_auth_store_unavailable`
+
+## Source of truth
+
+This document is derived from the grpc-gateway annotations in:
+
+- `proto/issues/v1/issue.proto`
+- `proto/feeds/v1/feed.proto`
+- `proto/blog/v1/post.proto`
