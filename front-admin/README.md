@@ -6,11 +6,10 @@ React + Vite + TypeScript + shadcn 风格的 datasrv 管理后台。
 
 ```bash
 npm install
-cp .env.example .env
-npm run dev
+VITE_API_BASE_URL=http://localhost:8080 npm run dev
 ```
 
-默认会请求 `VITE_API_BASE_URL`，开发时建议指向 `http://localhost:8080`。
+默认通过 `VITE_API_BASE_URL` 访问后端 HTTP API。
 
 ## 首版页面
 
