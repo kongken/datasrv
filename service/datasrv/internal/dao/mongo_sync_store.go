@@ -298,41 +298,15 @@ func (m *MongoSyncStore) ListIssues(ctx context.Context, filter SyncIssueFilter)
 		q["number"] = filter.Number
 	}
 
-	pipeline := mongo.Pipeline{
-		{{Key: "$match", Value: q}},
-		{{
-			Key: "$addFields",
-			Value: bson.D{{
-				Key: "has_ai_summary",
-				Value: bson.D{{
-					Key: "$cond",
-					Value: bson.A{
-						bson.D{{
-							Key: "$gt",
-							Value: bson.A{
-								bson.D{{
-									Key:   "$strLenCP",
-									Value: bson.D{{Key: "$ifNull", Value: bson.A{"$ai_summary", ""}}},
-								}},
-								0,
-							},
-						}},
-						1,
-						0,
-					},
-				}},
-			}},
-		}},
-		{{Key: "$sort", Value: bson.D{{Key: "has_ai_summary", Value: -1}, {Key: "updated_at", Value: -1}}}},
-	}
+	opts := options.Find().SetSort(bson.D{{Key: "updated_at", Value: -1}})
 	if filter.Offset > 0 {
-		pipeline = append(pipeline, bson.D{{Key: "$skip", Value: int64(filter.Offset)}})
+		opts.SetSkip(int64(filter.Offset))
 	}
 	if filter.Limit > 0 {
-		pipeline = append(pipeline, bson.D{{Key: "$limit", Value: int64(filter.Limit)}})
+		opts.SetLimit(int64(filter.Limit))
 	}
 
-	cursor, err := m.issuesCol.Aggregate(ctx, pipeline, options.Aggregate())
+	cursor, err := m.issuesCol.Find(ctx, q, opts)
 	if err != nil {
 		return nil, fmt.Errorf("mongo list issues: %w", err)
 	}
