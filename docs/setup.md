@@ -53,6 +53,15 @@ github_sync:
 
 Reference example: [`../service/datasrv/internal/conf/github-sync.example.yaml`](../service/datasrv/internal/conf/github-sync.example.yaml)
 
+To disable the scheduled GitHub collection job, set `github_sync.enabled` to `false` and restart the service:
+
+```yaml
+github_sync:
+  enabled: false
+```
+
+The service still initializes its datastore and APIs, while the GitHub scheduler skips all fetches. Other enabled schedulers, such as RSS feed sync, continue to start.
+
 ## Feed sync
 
 Minimum config:

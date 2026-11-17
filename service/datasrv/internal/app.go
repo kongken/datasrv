@@ -224,53 +224,48 @@ func startSyncScheduler() error {
 		return fmt.Errorf("sync service is not initialized")
 	}
 	cfg := syncService.GetConfig()
-	if !cfg.Enabled {
-		return nil
-	}
+	if cfg.Enabled && schedulerStopC == nil {
+		schedulerStopC = make(chan struct{})
+		var schedulerCtx context.Context
+		schedulerCtx, schedulerStop = context.WithCancel(context.Background())
 
-	if schedulerStopC != nil {
-		return nil
-	}
-	schedulerStopC = make(chan struct{})
-	var schedulerCtx context.Context
-	schedulerCtx, schedulerStop = context.WithCancel(context.Background())
-
-	interval := time.Duration(cfg.IntervalSeconds) * time.Second
-	if interval <= 0 {
-		interval = 5 * time.Minute
-	}
-	managedRepos, err := syncService.ListManagedRepos(context.Background())
-	if err != nil {
-		return fmt.Errorf("list managed repos before scheduler start: %w", err)
-	}
-	appLogger.Info("issue sync scheduler started",
-		"interval", interval.String(),
-		"managed_repo_count", len(managedRepos),
-		"managed_repos", managedRepoNames(managedRepos),
-	)
-
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				appLogger.Info("issue sync tick triggered")
-				summary, err := syncService.RunSync(schedulerCtx, "")
-				if err != nil {
-					appLogger.Error("issue sync run failed", "error", err)
-					continue
-				}
-				logIssueSyncSummary(summary)
-			case <-schedulerStopC:
-				appLogger.Info("issue sync scheduler stopped")
-				return
-			case <-schedulerCtx.Done():
-				appLogger.Info("issue sync scheduler context done")
-				return
-			}
+		interval := time.Duration(cfg.IntervalSeconds) * time.Second
+		if interval <= 0 {
+			interval = 5 * time.Minute
 		}
-	}()
+		managedRepos, err := syncService.ListManagedRepos(context.Background())
+		if err != nil {
+			return fmt.Errorf("list managed repos before scheduler start: %w", err)
+		}
+		appLogger.Info("issue sync scheduler started",
+			"interval", interval.String(),
+			"managed_repo_count", len(managedRepos),
+			"managed_repos", managedRepoNames(managedRepos),
+		)
+
+		go func() {
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					appLogger.Info("issue sync tick triggered")
+					summary, err := syncService.RunSync(schedulerCtx, "")
+					if err != nil {
+						appLogger.Error("issue sync run failed", "error", err)
+						continue
+					}
+					logIssueSyncSummary(summary)
+				case <-schedulerStopC:
+					appLogger.Info("issue sync scheduler stopped")
+					return
+				case <-schedulerCtx.Done():
+					appLogger.Info("issue sync scheduler context done")
+					return
+				}
+			}
+		}()
+	}
 
 	if feedSyncService != nil {
 		feedCfg := feedSyncService.GetConfig()
